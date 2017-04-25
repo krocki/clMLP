@@ -1,4 +1,12 @@
 # clMLP
 MultiLayer Perceptron in OpenCL
 
+Requires CLBlas and Eigen
+# OS X:
+```
+brew install clblas
+brew install eigen
+```
+
 #requires CLblas and Eigen
+tested with clblas-2.6 and Eigen 3.3.3
