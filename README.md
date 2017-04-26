@@ -1,6 +1,12 @@
 # clMLP
 MultiLayer Perceptron in OpenCL
 
+# basic usage
+```
+./clmlp <device_number>
+```
+
+# installation
 Requires CLBlas and Eigen
 # OS X:
 ```
