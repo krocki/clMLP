@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 08:06:57
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-26 11:28:02
+* @Last Modified time: 2017-04-26 16:21:08
 */
 
 #ifndef __CL_FUNCTIONS__
@@ -13,13 +13,33 @@
 
 unsigned long cl_flops_performed = 0L;
 
-// void cl_rand ( cl_matrix &x, float range_min = 0.0f, float range_max = 1.0f ) {}
-// void cl_randn ( cl_matrix &x, float mean = 0.0f, float stddev = 1.0f ) {}
+// void cl_rand ( cl_matrix<float> &x, float range_min = 0.0f, float range_max = 1.0f ) {}
+// void cl_randn ( cl_matrix<float> &x, float mean = 0.0f, float stddev = 1.0f ) {}
 
-void cl_matrix_mult ( cl_matrix &c, cl_matrix &a, cl_matrix &b, bool wait );
+
+void cl_matrix_mult ( cl_matrix<float> &c, cl_matrix<float> &a, cl_matrix<float> &b, bool wait );
+
+void cl_gather_data ( cl_matrix<float> &src, cl_matrix<float> &dst, const cl_matrix<int> &idxs, bool wait = false) {
+
+	unsigned int count = dst.rows() * dst.cols();
+	unsigned int n = dst.rows();
+
+	clSetKernelArg ( dst.matrix_ctx->kernels4["gather_data"], 0, sizeof ( cl_mem ), ( void * ) &src.device_data );
+	clSetKernelArg ( dst.matrix_ctx->kernels4["gather_data"], 1, sizeof ( cl_mem ), ( void * ) &dst.device_data );
+	clSetKernelArg ( dst.matrix_ctx->kernels4["gather_data"], 2, sizeof ( cl_mem ), ( void * ) &idxs.device_data );
+	clSetKernelArg ( dst.matrix_ctx->kernels4["gather_data"], 3, sizeof ( unsigned int ), ( void * ) &n );
+	clSetKernelArg ( dst.matrix_ctx->kernels4["gather_data"], 4, sizeof ( unsigned int ), ( void * ) &count );
+
+	size_t global_work_size = ( ( count / dst.matrix_ctx->local_work_size ) + 1 ) * dst.matrix_ctx->local_work_size;
+
+	dst.matrix_ctx->err = clEnqueueNDRangeKernel ( dst.matrix_ctx->queue(), dst.matrix_ctx->kernels4["gather_data"], 1, NULL, &global_work_size, &dst.matrix_ctx->local_work_size, 0, NULL, &dst.matrix_ctx->event );
+
+	if ( !dst.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &dst.matrix_ctx->event );
+
+}
 
 // y = f(y)
-void cl_elementwise ( cl_matrix &y, std::string func, bool wait = false ) {
+void cl_elementwise ( cl_matrix<float> &y, std::string func, bool wait = false ) {
 
 	unsigned int count = y.rows() * y.cols();
 
@@ -35,7 +55,7 @@ void cl_elementwise ( cl_matrix &y, std::string func, bool wait = false ) {
 }
 
 // y = f(x)
-void cl_elementwise ( cl_matrix &y, cl_matrix &x, std::string func, bool wait = false ) {
+void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, std::string func, bool wait = false ) {
 
 	unsigned int count = y.rows() * y.cols();
 
@@ -52,7 +72,7 @@ void cl_elementwise ( cl_matrix &y, cl_matrix &x, std::string func, bool wait = 
 }
 
 // y = x op z
-void cl_elementwise ( cl_matrix &y, cl_matrix &x, cl_matrix &z, std::string func, bool wait = false ) {
+void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, cl_matrix<float> &z, std::string func, bool wait = false ) {
 
 	unsigned int count = y.rows() * y.cols();
 
@@ -70,7 +90,7 @@ void cl_elementwise ( cl_matrix &y, cl_matrix &x, cl_matrix &z, std::string func
 }
 
 // y = x op z
-void cl_elementwise ( cl_matrix &y, cl_matrix &x, float z, std::string func, bool wait = false ) {
+void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, float z, std::string func, bool wait = false ) {
 
 	unsigned int count = y.rows() * y.cols();
 	float local_z = z;
@@ -88,7 +108,7 @@ void cl_elementwise ( cl_matrix &y, cl_matrix &x, float z, std::string func, boo
 
 }
 
-void cl_matrix_scalar ( cl_matrix &y, std::string func, bool wait = false ) {
+void cl_matrix_scalar ( cl_matrix<float> &y, std::string func, bool wait = false ) {
 
 	unsigned int count = y.rows() * y.cols();
 
@@ -105,7 +125,7 @@ void cl_matrix_scalar ( cl_matrix &y, std::string func, bool wait = false ) {
 
 }
 
-int cl_max_coeff ( cl_matrix &m, bool wait = false, bool read_to_hostmem = false ) {
+int cl_max_coeff ( cl_matrix<float> &m, bool wait = false, bool read_to_hostmem = false ) {
 
 	size_t N = m.rows() * m.cols();
 
@@ -165,14 +185,14 @@ int cl_max_coeff ( cl_matrix &m, bool wait = false, bool read_to_hostmem = false
 	return 0;
 }
 
-void cl_sub_max_coeff ( cl_matrix &m, bool wait = false ) {
+void cl_sub_max_coeff ( cl_matrix<float> &m, bool wait = false ) {
 
 	cl_max_coeff ( m, wait );
 	cl_matrix_scalar ( m, "sub", wait );
 
 }
 
-void cl_colsumdiv ( cl_matrix &y, cl_matrix &x, bool wait = false ) {
+void cl_colsumdiv ( cl_matrix<float> &y, cl_matrix<float> &x, bool wait = false ) {
 
 	unsigned int count = x.rows() * x.cols();
 	unsigned int cols = y.cols();
@@ -191,16 +211,16 @@ void cl_colsumdiv ( cl_matrix &y, cl_matrix &x, bool wait = false ) {
 
 }
 
-cl_matrix colsums;
-cl_matrix ones_column;
+cl_matrix<float> colsums;
+cl_matrix<float> ones_column;
 
-void cl_softmax ( cl_matrix &y, cl_matrix &x, bool wait = false ) {
+void cl_softmax ( cl_matrix<float> &y, cl_matrix<float> &x, bool wait = false ) {
 
 	cl_elementwise ( y, x, "exp", wait );
 
 	if ( !colsums.device_data ) {
 
-		colsums = cl_matrix ( y.matrix_ctx, {1, y.cols() } );
+		colsums = cl_matrix<float> ( y.matrix_ctx, {1, y.cols() } );
 
 	}
 
@@ -209,7 +229,7 @@ void cl_softmax ( cl_matrix &y, cl_matrix &x, bool wait = false ) {
 
 }
 
-void cl_matrix_mult ( cl_matrix &c, cl_matrix &a, cl_matrix &b, bool tA, bool tB, float alpha, float beta, bool wait = false ) {
+void cl_matrix_mult ( cl_matrix<float> &c, cl_matrix<float> &a, cl_matrix<float> &b, bool tA, bool tB, float alpha, float beta, bool wait = false ) {
 
 	const CL_BLAS_MATRIX_ORDER order = CL_BLAS_MATRIX_ORDER_COLUMN;
 	const CL_BLAS_MATRIX_TRANSPOSE transA = tA ? CL_BLAS_MATRIX_TRANSPOSED : CL_BLAS_MATRIX_NOT_TRANSPOSED;

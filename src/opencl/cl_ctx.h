@@ -2,13 +2,17 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 03:59:24
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-26 11:36:57
+* @Last Modified time: 2017-04-26 15:42:51
 */
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
+#endif
+
+#ifdef CLTUNE
+#include <cltune.h>
 #endif
 
 #include <opencl/cl_blas_defs.h>
@@ -41,11 +45,13 @@ class cl_ctx {
 	Dict<cl_kernel> kernels1; // unary
 	Dict<cl_kernel> kernels2; // binary
 	Dict<cl_kernel> kernels3; // ternary
+	Dict<cl_kernel> kernels4; // etc
 
 	Dict<cl_kernel> kernels_mat_scalar;
 	Dict<cl_kernel> kernels_colwise;
 
-	size_t local_work_size = 1;
+	bool get_workgroup_size_from_device = false;
+	size_t local_work_size = 64;
 
 	int init ( int requested_device = 0 ) {
 
@@ -96,7 +102,8 @@ class cl_ctx {
 		printf ( "local_mem_size: %llu\n", dev_properties.local_mem_size );
 		printf ( "preferred_vector: %u\n", dev_properties.preferred_vector );
 
-		local_work_size = dev_properties.workgroup_size;
+		if (get_workgroup_size_from_device)
+			local_work_size = dev_properties.workgroup_size;
 
 		//props[1] = (cl_context_properties)platform;
 		_ctx = clCreateContext ( NULL, 1, &device, NULL, NULL, &err );
@@ -148,6 +155,8 @@ class cl_ctx {
 		kernels3["dlogistic"] = clCreateKernel ( program, "dlogistic", &err );
 		kernels3["dsoftmax"] = clCreateKernel ( program, "dsoftmax", &err );
 		kernels3["fmad"] = clCreateKernel ( program, "fmad", &err );
+		kernels4["gather_data"] = clCreateKernel ( program, "gather_data", &err );
+
 		kernels_mat_scalar["sub"] = clCreateKernel ( program, "sub1", &err );
 
 		if ( err != CL_SUCCESS ) {
@@ -156,6 +165,39 @@ class cl_ctx {
 			clReleaseContext ( _ctx );
 			return 1;
 		}
+
+		const std::string color_message = "\x1b[33m[ workgroup_size = " + std::to_string(local_work_size) + " ]\x1b[0m";
+
+		std::cout << std::endl << color_message << std::endl;
+
+#ifdef CLTUNE
+		// Vector dimension
+		const auto kVectorSize = size_t{256 * 1024};
+
+		// Creates the vectors and fills them with some example data
+		std::vector<float> vec_a(kVectorSize, 1.0f);
+
+		// Initializes the tuner (platform 0, device 0)
+		cltune::Tuner tuner(size_t{0}, static_cast<size_t>(requested_device));
+
+		// Adds the kernel. The total number of threads (the global size) is equal to 'kVectorSize', and
+		// the base number of threads per work-group/thread-block (the local size) is 1. This number is
+		// then multiplied by the 'GROUP_SIZE' parameter, which can take any of the specified values.
+		const auto id = tuner.AddKernel({"./src/opencl/kernels/elementwise_ops.cl"}, "logistic1", {kVectorSize}, {1});
+		tuner.AddParameter(id, "GROUP_SIZE", {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048});
+		tuner.MulLocalSize(id, {"GROUP_SIZE"});
+
+		// Sets the function's arguments
+		tuner.AddArgumentInput(vec_a);
+		tuner.AddArgumentScalar(static_cast<int>(kVectorSize));
+
+		// Starts the tuner
+		tuner.SetNumRuns(10);
+		tuner.Tune();
+
+		// Prints the results to screen
+		tuner.PrintToScreen();
+#endif
 
 		return 0;
 	}
@@ -171,6 +213,8 @@ class cl_ctx {
 			clReleaseKernel ( kernels2.matrices[i] );
 		for ( size_t i = 0; i < kernels3.matrices.size(); i++ )
 			clReleaseKernel ( kernels3.matrices[i] );
+		for ( size_t i = 0; i < kernels4.matrices.size(); i++ )
+			clReleaseKernel ( kernels4.matrices[i] );
 		for ( size_t i = 0; i < kernels_mat_scalar.matrices.size(); i++ )
 			clReleaseKernel ( kernels_mat_scalar.matrices[i] );
 		for ( size_t i = 0; i < kernels_colwise.matrices.size(); i++ )

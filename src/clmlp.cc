@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-24 16:14:23
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-26 11:00:04
+* @Last Modified time: 2017-04-26 16:12:27
 */
 
 #include <opencl/cl_utils.h>
@@ -42,7 +42,7 @@ void nntest(int device) {
 
 	if ( ocl.init ( device ) != 0 ) printf ( "opencl init failed!\n" );
 
-	CLNN nn ( ocl, batch_size );
+	CLNN nn ( ocl, batch_size, 28 * 28, 10 );
 
 	nn.layers.push_back ( new Linear ( &ocl, 28 * 28, 256, batch_size ) );
 	nn.layers.push_back ( new ReLU ( &ocl, 256, 256, batch_size ) );
@@ -51,8 +51,8 @@ void nntest(int device) {
 	nn.layers.push_back ( new Linear ( &ocl, 100, 10, batch_size ) );
 	nn.layers.push_back ( new Softmax ( &ocl, 10, 10, batch_size ) );
 
-	datapoints train_data = MNISTImporter::importFromFile ( "data/mnist/train-images-idx3-ubyte", "data/mnist/train-labels-idx1-ubyte", 60000 );
-	datapoints test_data = MNISTImporter::importFromFile ( "data/mnist/t10k-images-idx3-ubyte", "data/mnist/t10k-labels-idx1-ubyte", 10000 );
+	datapoints train_data = MNISTImporter::importFromFile (ocl,  "data/mnist/train-images-idx3-ubyte", "data/mnist/train-labels-idx1-ubyte", 60000 );
+	datapoints test_data = MNISTImporter::importFromFile (ocl, "data/mnist/t10k-images-idx3-ubyte", "data/mnist/t10k-labels-idx1-ubyte", 10000 );
 
 	std::cout << "CL mem allocated: " << ( double ) cl_mem_allocated / ( double ) ( 1 << 20 ) << " MB\n";
 

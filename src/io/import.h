@@ -2,24 +2,22 @@
 * @Author: kmrocki
 * @Date:   2016-02-24 10:20:09
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 20:43:46
+* @Last Modified time: 2017-04-26 14:16:23
 */
 
 #ifndef __IMPORTER__
 #define __IMPORTER__
 
-#include <deque>
 #include <fstream>
 
 //set Matrix implementation
-#include <Eigen/Dense>
-typedef Eigen::VectorXf Vector;
+#include <opencl/cl_matrix.h>
 
 typedef struct {
 
-	Eigen::MatrixXf x; 	//inputs
-	Eigen::MatrixXi yi; //outputs int
-	Eigen::MatrixXf y1; //outputs 1-K
+	cl_matrix<float> x; 	//inputs
+	cl_matrix<int> yi; 		//outputs int
+	cl_matrix<float> y1; 	//outputs 1-K
 
 } datapoints;
 
@@ -27,20 +25,20 @@ class MNISTImporter {
 
   public:
 
-	static datapoints importFromFile ( const char *filename, const char *labels_filename, size_t N ) {
+	static datapoints importFromFile (cl_ctx& ctx, const char *filename, const char *labels_filename, size_t N ) {
 
 		const size_t offset_bytes = 16;
 		const size_t offset_bytes_lab = 8;
 		const size_t w = 28;
 		const size_t h = 28;
+		size_t n_classes = 10;
 
 		datapoints d;
 
-		d.x.resize(w * h, N);
-		d.yi.resize(1, N);
+		d.x = cl_matrix<float>(&ctx, {w * h, N});
+		d.yi = cl_matrix<int>(&ctx, {1, N});
+		d.y1 = cl_matrix<float>(&ctx, {n_classes, N});
 
-		size_t n_classes = 10;
-		d.y1.resize(n_classes, N);
 		Eigen::MatrixXf encoding = Eigen::MatrixXf::Identity ( n_classes, n_classes );
 
 		char buffer[w * h];
@@ -72,10 +70,10 @@ class MNISTImporter {
 					}
 
 					for ( unsigned i = 0; i < w * h; i++ )
-						d.x(i, allocs) = ( float ) ( ( uint8_t ) buffer[i] ) / 255.0f;
+						d.x.ref_host_data(i, allocs) = ( float ) ( ( uint8_t ) buffer[i] ) / 255.0f;
 
-					d.yi(0, allocs) = ( unsigned int ) buffer_lab;
-					d.y1.col(allocs) = encoding.col(( unsigned int ) buffer_lab);
+					d.yi.ref_host_data(0, allocs) = ( unsigned int ) buffer_lab;
+					d.y1.ref_host_data.col(allocs) = encoding.col(( unsigned int ) buffer_lab);
 
 					allocs++;
 
@@ -83,7 +81,14 @@ class MNISTImporter {
 
 			}
 
+			printf ( "\nSync datapoints to device...\n" );
+
+			d.x.sync_device();
+			d.yi.sync_device();
+			d.y1.sync_device();
+
 			printf ( "Finished.\n" );
+
 			infile.close();
 			labels_file.close();
 

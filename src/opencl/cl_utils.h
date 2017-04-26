@@ -32,6 +32,7 @@ class clUtils {
 };
 
 std::vector < cl_dev_info > clUtils::getAllDevices ( void ) {
+
 	std::vector < cl_dev_info > available_devices;
 	cl_device_id*
 	devices;
@@ -136,8 +137,8 @@ std::vector < deviceInfo > clUtils::listDevices ( void ) {
 	return devices;
 }
 
-cl_dev_info
-clUtils::getDevice ( cl_device_id device ) {
+cl_dev_info clUtils::getDevice ( cl_device_id device ) {
+
 	cl_dev_info     found_device;
 	char            device_string[BUFFER_STRING_LENGTH];
 	cl_uint         compute_units;
@@ -173,8 +174,8 @@ clUtils::getDevice ( cl_device_id device ) {
 	return found_device;
 }
 
-void
-clUtils::devInfo ( cl_device_id device, int extended ) {
+void clUtils::devInfo ( cl_device_id device, int extended ) {
+
 	char            device_string[BUFFER_STRING_LENGTH];
 	cl_bool         buf_bool;
 

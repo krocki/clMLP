@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-03-03 15:06:37
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 20:53:03
+* @Last Modified time: 2017-04-26 14:18:47
 */
 
 #ifndef __CL_LAYERS_H__
@@ -18,14 +18,14 @@ class CLLayer {
   public:
 
 	//used in forward pass
-	cl_matrix x, y, dx, dy;
+	cl_matrix<float> x, y, dx, dy;
 
 	CLLayer(cl_ctx* cl_env, size_t inputs, size_t outputs, size_t batch_size) {
 
-		x = cl_matrix(cl_env, {inputs, batch_size});
-		y = cl_matrix(cl_env, {outputs, batch_size});
-		dx = cl_matrix(cl_env, {inputs, batch_size});
-		dy = cl_matrix(cl_env, {outputs, batch_size});
+		x = cl_matrix<float>(cl_env, {inputs, batch_size});
+		y = cl_matrix<float>(cl_env, {outputs, batch_size});
+		dx = cl_matrix<float>(cl_env, {inputs, batch_size});
+		dy = cl_matrix<float>(cl_env, {outputs, batch_size});
 
 	};
 
@@ -46,7 +46,7 @@ class Linear : public CLLayer {
 
   public:
 
-	cl_matrix W, dW;
+	cl_matrix<float> W, dW;
 
 	void forward() {
 
@@ -63,10 +63,10 @@ class Linear : public CLLayer {
 
 	Linear(cl_ctx* cl_env, size_t inputs, size_t outputs, size_t batch_size) : CLLayer(cl_env, inputs, outputs, batch_size) {
 
-		W = cl_matrix(cl_env, {outputs, inputs});
-		dW = cl_matrix(W);
+		W = cl_matrix<float>(cl_env, {outputs, inputs});
+		dW = cl_matrix<float>(W);
 
-		matrix_randn ( W.ref_host_data, 0, ( 1.0f ) / sqrtf ( W.ref_host_data.rows() + W.ref_host_data.cols() ) );
+		matrix_randn_host ( W.ref_host_data, 0, ( 1.0f ) / sqrtf ( W.ref_host_data.rows() + W.ref_host_data.cols() ) );
 		// cl_elementwise(W, "randn", true);
 
 		W.sync_device();

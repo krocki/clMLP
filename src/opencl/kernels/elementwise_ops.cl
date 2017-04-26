@@ -1,5 +1,5 @@
 
-//#pragma OPENCL EXTENSION cl_amd_printf : enable
+#pragma OPENCL EXTENSION cl_amd_printf : enable
 
 #define FAST_MATH
 
@@ -145,3 +145,23 @@ __kernel void fmad(__global float* p, __global float* d, const float a, const un
 	}
 
 }
+
+__kernel void gather_data(__global float* in, __global float* out, __global int* idxs, const unsigned int n, const unsigned int count) {
+
+	unsigned int i = get_global_id(0);
+	unsigned int k = i / n;
+	unsigned int l = i % n;
+
+	unsigned int src_idx = idxs[k] * n;
+
+	if (i < count) {
+
+		out[i] = in[src_idx + l];
+
+	}
+
+}
+
+
+
+

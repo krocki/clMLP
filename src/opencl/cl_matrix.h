@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-24 16:58:15
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 21:31:24
+* @Last Modified time: 2017-04-26 15:21:39
 */
 
 #include <Eigen/Dense>
@@ -10,13 +10,22 @@
 #ifndef __CL_MATRIX__
 #define __CL_MATRIX__
 
-// int cl_alloc_bytes ( cl_ctx *clctx, cl_mem &buffer, size_t bytes, cl_mem_flags flags = CL_MEM_READ_WRITE );
-int cl_alloc_from_matrix ( cl_ctx *ctx, cl_mem &buffer, Eigen::MatrixXf &h, cl_mem_flags flags = CL_MEM_READ_WRITE );
-int cl_copy_matrix_to_host ( cl_ctx *ctx, Eigen::MatrixXf &dst, cl_mem device_data );
-int cl_copy_matrix_to_device ( cl_ctx *ctx, cl_mem device_data, Eigen::MatrixXf &src, bool wait = false );
+template<class T>
+using host_matrix = Eigen::Matrix< T , Eigen::Dynamic , Eigen::Dynamic >;
+
+int cl_copy_device_to_device ( cl_ctx *clctx, cl_mem &src, cl_mem &dst, size_t offset_src, size_t offset_dst, size_t bytes, bool wait = false);
+
+template <typename T>
+int cl_alloc_from_matrix ( cl_ctx *ctx, cl_mem &buffer, host_matrix<T> &h, cl_mem_flags flags = CL_MEM_READ_WRITE );
+template <typename T>
+int cl_copy_matrix_to_host ( cl_ctx *ctx, host_matrix<T> &dst, cl_mem device_data );
+
+template <typename T>
+int cl_copy_matrix_to_device ( cl_ctx *ctx, cl_mem device_data, host_matrix<T> &src, bool wait = false );
 
 unsigned long cl_mem_allocated = 0L;
 
+template <typename T = float>
 class cl_matrix {
 
   public:
@@ -30,8 +39,9 @@ class cl_matrix {
 	cl_uint indexMax = 0; // index of max value (updated through cl_max_coeff(cl_matrix& m))
 	unsigned int lenScratchBuf = 0;
 
-	Eigen::MatrixXf host_data;
-	Eigen::MatrixXf &ref_host_data;
+	host_matrix<T> host_data;
+	host_matrix<T> &ref_host_data;
+
 	cl_ctx *matrix_ctx;
 
 	cl_matrix ( cl_ctx *ctx = nullptr ) : ref_host_data ( host_data ), matrix_ctx ( ctx ) {
@@ -44,14 +54,14 @@ class cl_matrix {
 
 	cl_matrix ( cl_ctx *ctx, Eigen::Vector2i size ) : cl_matrix ( ctx ) {
 
-		host_data = Eigen::MatrixXf ( size[0], size[1] );
+		host_data = host_matrix<T> ( size[0], size[1] );
 		host_data.setZero();
 		ref_host_data = host_data;
 		alloc_device_mem();
 
 	};
 
-	cl_matrix ( cl_ctx *ctx, Eigen::MatrixXf &m ) : cl_matrix ( ctx ) {
+	cl_matrix ( cl_ctx *ctx, host_matrix<T> &m ) : cl_matrix ( ctx ) {
 
 		host_data = m;
 		ref_host_data = host_data;
@@ -70,6 +80,14 @@ class cl_matrix {
 		return *this;
 	};
 
+	void resize(size_t rows, size_t cols) {
+
+		host_data.resize(rows, cols);
+		free_device_mem();
+		alloc_device_mem();
+
+	}
+
 	size_t rows() const { return ref_host_data.rows(); }
 	size_t cols() const { return ref_host_data.cols(); }
 	size_t length() const { return rows() * cols(); }
@@ -80,9 +98,9 @@ class cl_matrix {
 
 	int setZero() {
 
-		float zero = 0.0f;
+		T zero = T(0);
 
-		matrix_ctx->err = clEnqueueFillBuffer ( matrix_ctx->queue(), device_data, &zero, sizeof ( float ), 0, length() * sizeof ( float ), 0, nullptr, nullptr );
+		matrix_ctx->err = clEnqueueFillBuffer ( matrix_ctx->queue(), device_data, &zero, sizeof ( T ), 0, length() * sizeof ( T ), 0, nullptr, nullptr );
 
 		if ( matrix_ctx->err != CL_SUCCESS ) {
 
@@ -96,9 +114,9 @@ class cl_matrix {
 
 	int setOnes() {
 
-		float one = 1.0f;
+		T one = T(1);
 
-		matrix_ctx->err = clEnqueueFillBuffer ( matrix_ctx->queue(), device_data, &one, sizeof ( float ), 0, length() * sizeof ( float ), 0, nullptr, nullptr );
+		matrix_ctx->err = clEnqueueFillBuffer ( matrix_ctx->queue(), device_data, &one, sizeof ( T ), 0, length() * sizeof ( T ), 0, nullptr, nullptr );
 
 		if ( matrix_ctx->err != CL_SUCCESS ) {
 
@@ -148,23 +166,30 @@ class cl_matrix {
 
 };
 
-// int cl_alloc_bytes ( cl_ctx *clctx, cl_mem &buffer, size_t bytes, cl_mem_flags flags) {
+int cl_copy_device_to_device ( cl_ctx *ctx, cl_mem &src, cl_mem &dst, size_t offset_src, size_t offset_dst, size_t bytes, bool wait) {
 
-// 	clCreateBuffer ( clctx->ctx(), flags, bytes, NULL, &clctx->err );
+	if ( ctx == nullptr ) {
 
-// 	if ( clctx->err != CL_SUCCESS ) {
+		printf ( "cl_copy_device_to_device: ctx== null!\n" );
+		return 1;
+	}
 
-// 		printf ( "clCreateBuffer failed with %d - %s\n", clctx->err, oclErrorString ( clctx->err ) );
-// 		return 1;
+	ctx->err = clEnqueueCopyBuffer ( ctx->queue(), src, dst, offset_src, offset_dst, bytes, 0, NULL, &ctx->event );
 
-// 	}
+	if ( ctx->err != CL_SUCCESS )
 
-// 	return 0;
-// }
+		printf ( "clEnqueueCopyBuffer failed with %d - %s\n", ctx->err, oclErrorString ( ctx->err ) );
 
-int cl_alloc_from_matrix ( cl_ctx *clctx, cl_mem &buffer, Eigen::MatrixXf &h, cl_mem_flags flags) {
+	if ( !ctx->asynchronous || wait ) clWaitForEvents ( 1, &ctx->event );
 
-	size_t alloc_size = sizeof ( float ) * h.cols() * h.rows();
+	return 0;
+
+}
+
+template <typename T = float>
+int cl_alloc_from_matrix ( cl_ctx *clctx, cl_mem &buffer, host_matrix<T> &h, cl_mem_flags flags) {
+
+	size_t alloc_size = sizeof ( T ) * h.cols() * h.rows();
 
 	if ( clctx == nullptr ) {
 
@@ -192,14 +217,16 @@ int cl_alloc_from_matrix ( cl_ctx *clctx, cl_mem &buffer, Eigen::MatrixXf &h, cl
 
 }
 
-void cl_free_matrix ( cl_matrix &m ) {
+template <typename T = float>
+void cl_free_matrix ( cl_matrix<T> &m ) {
 
 	clReleaseMemObject ( ( cl_mem ) m.device_data );
-	cl_mem_allocated -= m.cols() * m.rows() * sizeof ( float );
+	cl_mem_allocated -= m.cols() * m.rows() * sizeof ( T );
 
 }
 
-int cl_copy_matrix_to_device ( cl_ctx *ctx, cl_mem device_data, Eigen::MatrixXf &src, bool wait ) {
+template <typename T = float>
+int cl_copy_matrix_to_device ( cl_ctx *ctx, cl_mem device_data, host_matrix<T> &src, bool wait ) {
 
 	if ( ctx == nullptr ) {
 
@@ -207,7 +234,7 @@ int cl_copy_matrix_to_device ( cl_ctx *ctx, cl_mem device_data, Eigen::MatrixXf 
 		return 1;
 	}
 
-	size_t bytes = src.rows() * src.cols() * sizeof ( float );
+	size_t bytes = src.rows() * src.cols() * sizeof ( T );
 
 	ctx->err = clEnqueueWriteBuffer ( ctx->queue(), device_data, CL_TRUE, 0, bytes, src.data(), 0, NULL, &ctx->event );
 
@@ -220,7 +247,8 @@ int cl_copy_matrix_to_device ( cl_ctx *ctx, cl_mem device_data, Eigen::MatrixXf 
 	return 0;
 }
 
-int cl_copy_matrix_to_host ( cl_ctx *ctx, Eigen::MatrixXf &dst, cl_mem device_data ) {
+template <typename T = float>
+int cl_copy_matrix_to_host ( cl_ctx *ctx, host_matrix<T> &dst, cl_mem device_data ) {
 
 	if ( ctx == nullptr ) {
 
@@ -228,7 +256,7 @@ int cl_copy_matrix_to_host ( cl_ctx *ctx, Eigen::MatrixXf &dst, cl_mem device_da
 		return 1;
 	}
 
-	size_t bytes = dst.rows() * dst.cols() * sizeof ( float );
+	size_t bytes = dst.rows() * dst.cols() * sizeof ( T );
 
 	ctx->err = clEnqueueReadBuffer ( ctx->queue(), device_data, CL_TRUE, 0, bytes, dst.data(), 0, NULL, NULL );
 

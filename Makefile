@@ -9,6 +9,7 @@ INCLUDES = -I./src/ -I$(EIGEN_PATH)
 
 # CL_BLAS_IMPL=CLBLAST
 CL_BLAS_IMPL=CLBLAS
+CL_TUNE=0
 
 ifeq ($(CL_BLAS_IMPL),CLBLAS)
 #CLBLAS
@@ -18,8 +19,13 @@ endif
 
 ifeq ($(CL_BLAS_IMPL),CLBLAST)
 #CLBLAST
-CFLAGS := $(CFLAGS) -DCLBLAST
 LFLAGS := $(LFLAGS) -lclblast
+CFLAGS := $(CFLAGS) -DCLBLAST
+endif
+
+ifeq ($(CL_TUNE),1)
+LFLAGS := $(LFLAGS) -lcltune
+CFLAGS := $(CFLAGS) -DCLTUNE
 endif
 
 ifeq ($(OS),Linux)
