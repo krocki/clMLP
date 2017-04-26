@@ -2,12 +2,13 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 08:06:57
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 21:34:15
+* @Last Modified time: 2017-04-26 11:28:02
 */
 
 #ifndef __CL_FUNCTIONS__
 #define __CL_FUNCTIONS__
 
+#include <opencl/cl_blas_defs.h>
 #include <opencl/cl_matrix.h>
 
 unsigned long cl_flops_performed = 0L;
@@ -130,9 +131,12 @@ int cl_max_coeff ( cl_matrix &m, bool wait = false, bool read_to_hostmem = false
 
 	}
 
-	m.matrix_ctx->err = clblasiSamax ( N, m.iMax, 0, m.device_data, 0, 1, m.scratchBuf, 1, &m.matrix_ctx->queue(), 0, NULL, &m.matrix_ctx->event );
 
-	if ( m.matrix_ctx->err != CL_SUCCESS ) {
+	// CL_BLAS_STATUS_TYPE status = CL_BLAS_ISAMAX ( N, m.iMax, 0, m.device_data, 0, 1, m.scratchBuf, 1, &m.matrix_ctx->queue(), 0, NULL, &m.matrix_ctx->event );
+
+	CL_BLAS_STATUS_TYPE status = CL_BLAS_ISAMAX (  N, m.iMax, 0, m.device_data, 0, 1, m.scratchBuf, 1, &m.matrix_ctx->queue(), 0, NULL, &m.matrix_ctx->event );
+
+	if ( status != CL_BLAS_SUCCESS_CODE ) {
 		printf ( "clblasiSamax() failed with %d\n", m.matrix_ctx->err );
 		return 1;
 
@@ -205,42 +209,34 @@ void cl_softmax ( cl_matrix &y, cl_matrix &x, bool wait = false ) {
 
 }
 
-void cl_matrix_mult ( cl_matrix &c, cl_matrix &a, cl_matrix &b, bool a_transposed, bool b_transposed, float alpha, float beta, bool wait = false ) {
+void cl_matrix_mult ( cl_matrix &c, cl_matrix &a, cl_matrix &b, bool tA, bool tB, float alpha, float beta, bool wait = false ) {
 
-	const clblasOrder order = clblasColumnMajor;
-	const clblasTranspose transA = a_transposed ? clblasTrans : clblasNoTrans;
-	const clblasTranspose transB = b_transposed ? clblasTrans : clblasNoTrans;
+	const CL_BLAS_MATRIX_ORDER order = CL_BLAS_MATRIX_ORDER_COLUMN;
+	const CL_BLAS_MATRIX_TRANSPOSE transA = tA ? CL_BLAS_MATRIX_TRANSPOSED : CL_BLAS_MATRIX_NOT_TRANSPOSED;
+	const CL_BLAS_MATRIX_TRANSPOSE transB = tB ? CL_BLAS_MATRIX_TRANSPOSED : CL_BLAS_MATRIX_NOT_TRANSPOSED;
 
 	size_t M = c.rows();
 	size_t N = c.cols();
-	size_t K = a_transposed ? b.rows() : a.cols();
+	size_t K = tA ? b.rows() : a.cols();
 
-	size_t lda = a_transposed ? K : M;
-	size_t ldb = b_transposed ? N : K;
+	size_t lda = tA ? K : M;
+	size_t ldb = tB ? N : K;
 	size_t ldc = M;
 
 	size_t offset_a = 0;
 	size_t offset_b = 0;
 	size_t offset_c = 0;
 
-	c.matrix_ctx->err = clblasSgemm ( order, transA, transB, M, N, K, alpha,
-	                                  ( cl_mem ) a.device_data, offset_a, lda,
-	                                  ( cl_mem ) b.device_data, offset_b, ldb,
-	                                  beta, ( cl_mem ) c.device_data, offset_c, ldc,
-	                                  1, &c.matrix_ctx->queue(), 0, NULL, &c.matrix_ctx->event );
+	CL_BLAS_STATUS_TYPE status;
 
-	if ( c.matrix_ctx->err != CL_SUCCESS )
+	status = CL_BLAS_SGEMM ( order, transA, transB, M, N, K, alpha, ( cl_mem ) a.device_data, offset_a, lda, ( cl_mem ) b.device_data, offset_b, ldb, beta, ( cl_mem ) c.device_data, offset_c, ldc, 1, &c.matrix_ctx->queue(), 0, NULL, &c.matrix_ctx->event );
+
+	if ( status != CL_BLAS_SUCCESS_CODE )
 		printf ( "clblasSgemm() failed with %d - %s\n", c.matrix_ctx->err, oclErrorString ( c.matrix_ctx->err ) );
 
 	else {
 
-		if ( !c.matrix_ctx->asynchronous || wait ) {
-
-			c.matrix_ctx->err = clWaitForEvents ( 1, &c.matrix_ctx->event );
-
-			if ( c.matrix_ctx->err != CL_SUCCESS )
-				printf ( "clWaitForEvents failed with %d - %s\n", c.matrix_ctx->err, oclErrorString ( c.matrix_ctx->err ) );
-		}
+		if ( !c.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &c.matrix_ctx->event );
 
 	}
 

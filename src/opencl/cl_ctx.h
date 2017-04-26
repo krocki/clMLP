@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 03:59:24
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 21:33:34
+* @Last Modified time: 2017-04-26 11:36:57
 */
 
 #ifdef __APPLE__
@@ -11,7 +11,8 @@
 #include <CL/cl.h>
 #endif
 
-#include <clBLAS.h>
+#include <opencl/cl_blas_defs.h>
+
 #include <containers/dict.h>
 
 #ifndef __CL_CTX_H__
@@ -111,8 +112,10 @@ class cl_ctx {
 			return 1;
 		}
 
+		std::cout << "CL_BLAS_IMPL: " << CL_BLAS_IMPL << std::endl;
+
 		/* Setup clblas. */
-		err = clblasSetup();
+		err = CL_BLAS_INIT();
 
 		if ( err != CL_SUCCESS ) {
 			printf ( "clblasSetup() failed with %d\n", err );
@@ -120,7 +123,6 @@ class cl_ctx {
 			clReleaseContext ( _ctx );
 			return 1;
 		}
-
 		// compiling programs
 		printf ( "compiling programs\n" );
 
@@ -148,8 +150,6 @@ class cl_ctx {
 		kernels3["fmad"] = clCreateKernel ( program, "fmad", &err );
 		kernels_mat_scalar["sub"] = clCreateKernel ( program, "sub1", &err );
 
-
-
 		if ( err != CL_SUCCESS ) {
 			printf ( "clCreateKernel() failed with %d\n", err );
 			clReleaseCommandQueue ( _queue );
@@ -163,7 +163,7 @@ class cl_ctx {
 	~cl_ctx() {
 
 		/* Finalize work with clblas. */
-		clblasTeardown();
+		CL_BLAS_TEARDOWN();
 
 		for ( size_t i = 0; i < kernels1.matrices.size(); i++ )
 			clReleaseKernel ( kernels1.matrices[i] );

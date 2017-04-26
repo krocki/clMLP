@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-24 16:14:23
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 21:01:29
+* @Last Modified time: 2017-04-26 11:00:04
 */
 
 #include <opencl/cl_utils.h>
@@ -18,35 +18,40 @@
 
 #include <vector>
 
-void nntest();
+void nntest(int device);
 
-int main ( void ) {
 
-	nntest();
+int main ( int argc, char **argv ) {
+
+	int requested_cl_device = 1;
+
+	if (argc > 1)
+		requested_cl_device = atoi(argv[1]);
+
+	nntest(requested_cl_device);
 
 }
 
-void nntest() {
+void nntest(int device) {
 
 	size_t epochs = 1000;
 	size_t batch_size = 250;
-	float learning_rate = 1e-4f;
+	float learning_rate = 1e-3f;
 
 	cl_ctx ocl;
-	int requested_cl_device = 2;
-	if ( ocl.init ( requested_cl_device ) != 0 ) printf ( "opencl init failed!\n" );
+
+	if ( ocl.init ( device ) != 0 ) printf ( "opencl init failed!\n" );
 
 	CLNN nn ( ocl, batch_size );
 
-	nn.layers.push_back ( new Linear ( &ocl, 28 * 28, 900, batch_size ) );
-	nn.layers.push_back ( new ReLU ( &ocl, 900, 900, batch_size ) );
-	nn.layers.push_back ( new Linear ( &ocl, 900, 400, batch_size ) );
-	nn.layers.push_back ( new ReLU ( &ocl, 400, 400, batch_size ) );
-	nn.layers.push_back ( new Linear ( &ocl, 400, 10, batch_size ) );
+	nn.layers.push_back ( new Linear ( &ocl, 28 * 28, 256, batch_size ) );
+	nn.layers.push_back ( new ReLU ( &ocl, 256, 256, batch_size ) );
+	nn.layers.push_back ( new Linear ( &ocl, 256, 100, batch_size ) );
+	nn.layers.push_back ( new ReLU ( &ocl, 100, 100, batch_size ) );
+	nn.layers.push_back ( new Linear ( &ocl, 100, 10, batch_size ) );
 	nn.layers.push_back ( new Softmax ( &ocl, 10, 10, batch_size ) );
 
 	datapoints train_data = MNISTImporter::importFromFile ( "data/mnist/train-images-idx3-ubyte", "data/mnist/train-labels-idx1-ubyte", 60000 );
-
 	datapoints test_data = MNISTImporter::importFromFile ( "data/mnist/t10k-images-idx3-ubyte", "data/mnist/t10k-labels-idx1-ubyte", 10000 );
 
 	std::cout << "CL mem allocated: " << ( double ) cl_mem_allocated / ( double ) ( 1 << 20 ) << " MB\n";
