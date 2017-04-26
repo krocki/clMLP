@@ -4,7 +4,7 @@ CC=g++
 
 CFLAGS = -Ofast -Wall -Wextra -Wfatal-errors -std=c++14
 LFLAGS =
-EIGEN_PATH = /usr/local/Cellar/eigen/3.3.3/include/eigen3/
+EIGEN_PATH = /usr/local/Cellar/eigen/3.3.1/include/eigen3/
 INCLUDES = -I./src/ -I$(EIGEN_PATH)
 
 # CL_BLAS_IMPL=CLBLAST
@@ -29,11 +29,11 @@ CFLAGS := $(CFLAGS) -DCLTUNE
 endif
 
 ifeq ($(OS),Linux)
-		# CL_LIB_PATH := /usr/local/cuda-8.0/lib
-		# CL_INCLUDE_PATH := /usr/local/cuda-8.0/include
-		# LFLAGS := $(LFLAGS) -lOpenCL
-  		# LFLAGS := $(LFLAGS) -L$(CL_LIB_PATH)
-  		# INCLUDES := $(INCLUDES) -I$(CL_INCLUDE_PATH)
+		CL_LIB_PATH := /usr/local/cuda-8.0/lib
+		CL_INCLUDE_PATH := /usr/local/cuda-8.0/include
+  		LFLAGS := $(LFLAGS) -lOpenCL 
+  		LFLAGS := $(LFLAGS) -L$(CL_LIB_PATH)
+  		INCLUDES := $(INCLUDES) -I$(CL_INCLUDE_PATH)
 else
         #OSX
         LFLAGS := $(LFLAGS) -framework OpenCL
