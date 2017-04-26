@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 03:59:24
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 19:36:24
+* @Last Modified time: 2017-04-25 21:33:34
 */
 
 #ifdef __APPLE__
@@ -23,12 +23,10 @@ class cl_ctx {
 
 	cl_platform_id platform = 0;
 	cl_device_id device = 0;
-	cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
+	// cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
 	cl_context _ctx = 0;
 	cl_command_queue _queue = 0;
 	cl_program program = 0;
-
-	int ret = 0;
 
 	std::vector <deviceInfo> availableDevices;
 
@@ -92,9 +90,9 @@ class cl_ctx {
 
 		printf ( "device_string: %s\n", dev_properties.device_string.c_str() );
 		printf ( "compute_units: %u\n", dev_properties.compute_units );
-		printf ( "workgroup_size: %zu\n", dev_properties.workgroup_size );
-		printf ( "global_mem_size: %lu\n", dev_properties.global_mem_size );
-		printf ( "local_mem_size: %lu\n", dev_properties.local_mem_size );
+		printf ( "workgroup_size: %u\n", dev_properties.workgroup_size );
+		printf ( "global_mem_size: %llu\n", dev_properties.global_mem_size );
+		printf ( "local_mem_size: %llu\n", dev_properties.local_mem_size );
 		printf ( "preferred_vector: %u\n", dev_properties.preferred_vector );
 
 		local_work_size = dev_properties.workgroup_size;

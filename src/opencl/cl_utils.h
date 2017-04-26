@@ -379,7 +379,7 @@ clUtils::devInfo ( cl_device_id device, int extended ) {
 		// CL_DEVICE_IMAGE2D_MAX_WIDTH, CL_DEVICE_IMAGE2D_MAX_HEIGHT,
 		// CL_DEVICE_IMAGE3D_MAX_WIDTH, CL_DEVICE_IMAGE3D_MAX_HEIGHT,
 		// CL_DEVICE_IMAGE3D_MAX_DEPTH
-		size_t          szMaxDims[5];
+		size_t szMaxDims[5];
 
 		if ( extended ) {
 			printf ( "\t\t\tCL_DEVICE_IMAGE:\n" );
@@ -431,7 +431,7 @@ clUtils::devInfo ( cl_device_id device, int extended ) {
 		               ( device, CL_DEVICE_EXTENSIONS, sizeof ( device_string ),
 		                 &device_string, NULL ) );
 
-		if ( device_string != 0 ) {
+		if ( strlen ( device_string ) != 0 ) {
 
 			char           delimiter[] = " ";
 			unsigned long  inputLength = strlen ( device_string );

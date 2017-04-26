@@ -2,7 +2,7 @@
 * @Author: kmrocki
 * @Date:   2016-02-24 15:28:10
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 20:50:28
+* @Last Modified time: 2017-04-25 21:32:20
 */
 
 #ifndef __CLNN_H__
@@ -128,7 +128,7 @@ class CLNN {
 		size_t classes = 10;
 		size_t correct = 0;
 
-		for (size_t ii = 0; ii < data.x.cols(); ii += batch_size) {
+		for (int ii = 0; ii < data.x.cols(); ii += batch_size) {
 
 			linspace(numbers, ii, ii + batch_size);
 

@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-24 16:58:15
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 20:21:00
+* @Last Modified time: 2017-04-25 21:31:24
 */
 
 #include <Eigen/Dense>
@@ -67,6 +67,7 @@ class cl_matrix {
 		free_device_mem();
 		alloc_device_mem();
 
+		return *this;
 	};
 
 	size_t rows() const { return ref_host_data.rows(); }
@@ -90,6 +91,7 @@ class cl_matrix {
 
 		}
 
+		return 0;
 	}
 
 	int setOnes() {

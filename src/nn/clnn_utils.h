@@ -2,7 +2,7 @@
 * @Author: kmrocki
 * @Date:   2016-02-24 10:47:03
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 20:39:11
+* @Last Modified time: 2017-04-25 21:31:55
 */
 
 #ifndef __CLNN_UTILS_H__
@@ -115,21 +115,21 @@ void make_batch ( Eigen::MatrixXf &batch, const Eigen::MatrixXf &data, const Eig
 
 void mix ( Eigen::MatrixXf &a, const Eigen::MatrixXf &b, const Eigen::MatrixXi &random_numbers ) {
 
-	for ( size_t i = 0; i < random_numbers.size(); i++ )
+	for ( int i = 0; i < random_numbers.size(); i++ )
 		if ( random_numbers ( i ) == 1 ) a.col ( i ) = b.col ( i );
 
 }
 
 void mix ( Eigen::MatrixXf &a, const Eigen::MatrixXf &b, const Eigen::VectorXi &random_numbers ) {
 
-	for ( size_t i = 0; i < random_numbers.rows(); i++ )
+	for ( int i = 0; i < random_numbers.rows(); i++ )
 		if ( random_numbers ( i ) == 1 ) a.col ( i ) = b.col ( i );
 
 }
 
 void mix ( Eigen::VectorXf &a, const Eigen::VectorXf &b, const Eigen::VectorXi &random_numbers ) {
 
-	for ( size_t i = 0; i < random_numbers.rows(); i++ )
+	for ( int i = 0; i < random_numbers.rows(); i++ )
 		if ( random_numbers ( i ) == 1 ) a.col ( i ) = b.col ( i );
 
 }

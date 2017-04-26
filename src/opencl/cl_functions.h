@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 08:06:57
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 20:58:34
+* @Last Modified time: 2017-04-25 21:34:15
 */
 
 #ifndef __CL_FUNCTIONS__
@@ -12,8 +12,8 @@
 
 unsigned long cl_flops_performed = 0L;
 
-void cl_rand ( cl_matrix &x, float range_min = 0.0f, float range_max = 1.0f ) {}
-void cl_randn ( cl_matrix &x, float mean = 0.0f, float stddev = 1.0f ) {}
+// void cl_rand ( cl_matrix &x, float range_min = 0.0f, float range_max = 1.0f ) {}
+// void cl_randn ( cl_matrix &x, float mean = 0.0f, float stddev = 1.0f ) {}
 
 void cl_matrix_mult ( cl_matrix &c, cl_matrix &a, cl_matrix &b, bool wait );
 
@@ -87,7 +87,7 @@ void cl_elementwise ( cl_matrix &y, cl_matrix &x, float z, std::string func, boo
 
 }
 
-void cl_matrix_scalar ( cl_matrix &y, cl_mem val, std::string func, bool wait = false ) {
+void cl_matrix_scalar ( cl_matrix &y, std::string func, bool wait = false ) {
 
 	unsigned int count = y.rows() * y.cols();
 
@@ -107,7 +107,6 @@ void cl_matrix_scalar ( cl_matrix &y, cl_mem val, std::string func, bool wait = 
 int cl_max_coeff ( cl_matrix &m, bool wait = false, bool read_to_hostmem = false ) {
 
 	size_t N = m.rows() * m.cols();
-	static const int incx = 1;
 
 	if ( m.lenScratchBuf < N ) {
 
@@ -165,7 +164,7 @@ int cl_max_coeff ( cl_matrix &m, bool wait = false, bool read_to_hostmem = false
 void cl_sub_max_coeff ( cl_matrix &m, bool wait = false ) {
 
 	cl_max_coeff ( m, wait );
-	cl_matrix_scalar ( m, m.iMax, "sub", wait );
+	cl_matrix_scalar ( m, "sub", wait );
 
 }
 

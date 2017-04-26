@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-03-03 15:22:47
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 20:13:54
+* @Last Modified time: 2017-04-25 21:24:53
 */
 
 #ifndef __UTIL_MAIN_H__
@@ -20,6 +20,7 @@
 #include <iostream>
 #include <cmath>
 #include <cfloat>
+#include <chrono>
 
 #include <Eigen/Dense>
 
