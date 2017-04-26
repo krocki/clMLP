@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-03-03 15:06:37
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 15:53:24
+* @Last Modified time: 2017-04-25 20:53:03
 */
 
 #ifndef __CL_LAYERS_H__
@@ -73,12 +73,6 @@ class Linear : public CLLayer {
 
 	};
 
-	void resetGrads() {
-
-		dW.setZero();
-
-	}
-
 	virtual void sync_device() {
 
 		W.sync_device();
@@ -93,7 +87,7 @@ class Linear : public CLLayer {
 
 	void applyGrads(float alpha) {
 
-		cl_elementwise(W, dW, alpha, "fmad", true);
+		cl_elementwise(W, dW, alpha, "fmad");
 
 	}
 
@@ -107,13 +101,13 @@ class Sigmoid : public CLLayer {
 
 	void forward() {
 
-		cl_elementwise(y, x, "logistic", true);
+		cl_elementwise(y, x, "logistic");
 
 	}
 
 	void backward() {
 
-		cl_elementwise(dx, dy, y, "dlogistic", true);
+		cl_elementwise(dx, dy, y, "dlogistic");
 
 	}
 
@@ -128,13 +122,13 @@ class ReLU : public CLLayer {
 
 	void forward() {
 
-		cl_elementwise(y, x, "relu", true);
+		cl_elementwise(y, x, "relu");
 
 	}
 
 	void backward() {
 
-		cl_elementwise(dx, dy, y, "drelu", true);
+		cl_elementwise(dx, dy, y, "drelu");
 
 	}
 
@@ -149,15 +143,15 @@ class Softmax : public CLLayer {
 
 	void forward() {
 
-		cl_sub_max_coeff(x, true);
-		cl_softmax(y, x, true);
+		cl_sub_max_coeff(x);
+		cl_softmax(y, x);
 
 
 	}
 
 	void backward() {
 
-		cl_elementwise(dx, dy, y, "dsoftmax", true);
+		cl_elementwise(dx, dy, y, "dsoftmax");
 
 	}
 

@@ -2,7 +2,7 @@
 * @Author: kmrocki
 * @Date:   2016-02-24 10:20:09
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 16:26:46
+* @Last Modified time: 2017-04-25 20:43:46
 */
 
 #ifndef __IMPORTER__
@@ -17,23 +17,31 @@ typedef Eigen::VectorXf Vector;
 
 typedef struct {
 
-	Vector x; 	//inputs
-	int y; 		//label
+	Eigen::MatrixXf x; 	//inputs
+	Eigen::MatrixXi yi; //outputs int
+	Eigen::MatrixXf y1; //outputs 1-K
 
-} datapoint;
+} datapoints;
 
 class MNISTImporter {
 
   public:
 
-	static std::deque<datapoint> importFromFile ( const char *filename, const char *labels_filename ) {
+	static datapoints importFromFile ( const char *filename, const char *labels_filename, size_t N ) {
 
 		const size_t offset_bytes = 16;
 		const size_t offset_bytes_lab = 8;
 		const size_t w = 28;
 		const size_t h = 28;
 
-		std::deque<datapoint> out;
+		datapoints d;
+
+		d.x.resize(w * h, N);
+		d.yi.resize(1, N);
+
+		size_t n_classes = 10;
+		d.y1.resize(n_classes, N);
+		Eigen::MatrixXf encoding = Eigen::MatrixXf::Identity ( n_classes, n_classes );
 
 		char buffer[w * h];
 		char buffer_lab;
@@ -58,24 +66,18 @@ class MNISTImporter {
 
 				if ( !infile.eof() && !labels_file.eof() ) {
 
-					Vector temp ( w * h );
-
-					allocs++;
-
 					if ( allocs % 1000 == 0 ) {
 						putchar ( '.' );
 						fflush ( stdout );
 					}
 
 					for ( unsigned i = 0; i < w * h; i++ )
+						d.x(i, allocs) = ( float ) ( ( uint8_t ) buffer[i] ) / 255.0f;
 
-						temp ( i ) = ( double ) ( ( uint8_t ) buffer[i] ) / 255.0f;
+					d.yi(0, allocs) = ( unsigned int ) buffer_lab;
+					d.y1.col(allocs) = encoding.col(( unsigned int ) buffer_lab);
 
-
-					datapoint dp;
-					dp.x = temp;
-					dp.y = ( unsigned int ) buffer_lab;
-					out.push_back ( dp );
+					allocs++;
 
 				}
 
@@ -89,7 +91,7 @@ class MNISTImporter {
 
 			printf ( "Oops! Couldn't find file %s or %s\n", filename, labels_filename );
 
-		return out;
+		return d;
 
 	}
 

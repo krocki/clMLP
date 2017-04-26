@@ -2,7 +2,7 @@
 * @Author: kmrocki
 * @Date:   2016-02-24 10:47:03
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 16:28:24
+* @Last Modified time: 2017-04-25 20:39:11
 */
 
 #ifndef __CLNN_UTILS_H__
@@ -13,172 +13,14 @@
 //set Matrix & Vector implementation
 #include <Eigen/Dense>
 
-#define dtype float
-typedef Eigen::MatrixXf Matrix;
-typedef Eigen::VectorXf Vector;
-
 #include <io/import.h>
 #include <iostream>
 #include <random>
 
-inline float sqrt_eps ( const float x ) {
-	return sqrtf ( x ) + 1e-8f;
-}
-
-//f(x) = sigm(x)
-inline float __logistic ( const float x ) {
-	return 1.0f / ( 1.0f +::expf ( -x ) );
-}
-
-inline float __exponential ( const float x ) {
-	return expf ( x );
-}
-
-#ifdef USE_BLAS
-#include <cblas.h>
-void BLAS_mmul ( Eigen::MatrixXf &__restrict c, Eigen::MatrixXf &__restrict a,
-                 Eigen::MatrixXf &__restrict b, bool aT = false, bool bT = false );
-
-#endif
-
-void random_binary_mask ( Matrix &mask ) {
-
-	for ( int i = 0; i < mask.rows(); i++ ) {
-		for ( int j = 0; j < mask.cols(); j++ )
-
-			mask ( i, j ) = round ( rand_float ( 0, 1 ) );
-
-	}
-}
-
-
-Matrix rectify ( Matrix &x ) {
-
-	Matrix y ( x.rows(), x.cols() );
-
-	for ( int i = 0; i < x.rows(); i++ ) {
-		for ( int j = 0; j < x.cols(); j++ )
-
-			y ( i, j ) = x ( i, j ) > 0.0f ? x ( i, j ) : 0.0f;
-	}
-
-	return y;
-
-}
-
-Matrix leaky_rectify ( Matrix &x, float alpha = 0.01f ) {
-
-	Matrix y ( x.rows(), x.cols() );
-
-	for ( int i = 0; i < x.rows(); i++ ) {
-		for ( int j = 0; j < x.cols(); j++ )
-
-			y ( i, j ) = x ( i, j ) > 0.0f ? x ( i, j ) : alpha * x ( i, j );
-	}
-
-	return y;
-
-}
-
-// Exponential Linear Unit
-// http://arxiv.org/pdf/1511.07289v5.pdf
-Matrix activation_ELU ( Matrix &x ) {
-
-	float alpha = 1.0f;
-
-	Matrix y ( x.rows(), x.cols() );
-
-	for ( int i = 0; i < x.rows(); i++ ) {
-		for ( int j = 0; j < x.cols(); j++ )
-
-			y ( i, j ) = x ( i, j ) >= 0.0f ? x ( i, j ) : alpha * ( expf ( x ( i, j ) ) - 1.0f );
-
-	}
-
-	return y;
-
-}
-
-Matrix derivative_ELU ( Matrix &x ) {
-
-	float alpha = 1.0f;
-
-	Matrix y ( x.rows(), x.cols() );
-
-	for ( int i = 0; i < x.rows(); i++ ) {
-		for ( int j = 0; j < x.cols(); j++ )
-
-			y ( i, j ) = x ( i, j ) >= 0.0f ? 1.0f : ( x ( i, j ) + alpha );
-	}
-
-	return y;
-
-}
-
-Matrix derivative_ReLU ( Matrix &x ) {
-
-	Matrix y ( x.rows(), x.cols() );
-
-	for ( int i = 0; i < x.rows(); i++ ) {
-		for ( int j = 0; j < x.cols(); j++ )
-
-			y ( i, j ) = ( float ) ( x ( i, j ) > 0 );
-	}
-
-	return y;
-
-}
-
-Matrix derivative_LeakyReLU ( Matrix &x, float alpha = 0.01f ) {
-
-	Matrix y ( x.rows(), x.cols() );
-
-	for ( int i = 0; i < x.rows(); i++ ) {
-		for ( int j = 0; j < x.cols(); j++ )
-
-			y ( i, j ) = ( float ) ( x ( i, j ) > 0 ? 1.0f : alpha );
-	}
-
-	return y;
-
-}
-
-Matrix logistic ( Matrix &x ) {
-
-	Matrix y ( x.rows(), x.cols() );
-
-	for ( int i = 0; i < x.rows(); i++ ) {
-		for ( int j = 0; j < x.cols(); j++ )
-
-			y ( i, j ) = __logistic ( x ( i, j ) );
-	}
-
-	return y;
-}
-
-Matrix softmax ( Matrix &x ) {
-
-	Matrix y ( x.rows(), x.cols() );
-
-	//probs(class) = exp(x, class)/sum(exp(x, class))
-
-	Matrix e = x.unaryExpr ( std::ptr_fun ( ::expf ) );
-
-	Vector sum = e.colwise().sum();
-
-	for ( int i = 0; i < e.rows(); i++ ) {
-		for ( int j = 0; j < e.cols(); j++ )
-
-			y ( i, j ) = e ( i, j ) / sum ( j );
-	}
-
-	return y;
-}
-
-float cross_entropy ( Matrix &predictions, Matrix &targets ) {
+float cross_entropy ( Eigen::MatrixXf &error, Eigen::MatrixXf &predictions, Eigen::MatrixXf &targets ) {
 
 	float ce = 0.0f;
-	Matrix error ( predictions.rows(), predictions.cols() );
+	error.resize(predictions.rows(), predictions.cols());
 
 	//check what has happened and get information content for that event
 	error.array() = -predictions.unaryExpr ( std::ptr_fun ( ::logf ) ).array() * targets.array();
@@ -187,26 +29,11 @@ float cross_entropy ( Matrix &predictions, Matrix &targets ) {
 	return ce;
 }
 
-float cross_entropy_mask ( Matrix &predictions, Matrix &targets, Matrix &mask, bool invert = false ) {
-
-	float ce = 0.0f;
-	Matrix error ( predictions.rows(), predictions.cols() );
-
-	if ( !invert )
-		error.array() = -predictions.unaryExpr ( std::ptr_fun ( ::logf ) ).array() * mask.array();
-	else
-		error.array() = - ( 1.0f - predictions.array() ).unaryExpr ( std::ptr_fun ( ::logf ) ).array() * mask.array();
-
-	ce = error.sum();
-
-	return ce;
-}
-
-float mse ( Matrix &yhat, Matrix &y ) {
+float mse (Eigen::MatrixXf &error, Eigen::MatrixXf &yhat, Eigen::MatrixXf &y ) {
 
 	float mse = 0.0;
-	Matrix error = y - yhat;
-
+	error.resize(y.rows(), y.cols());
+	error.array() = y.array() - yhat.array();
 	error.array() = 2.0f * error.array() * error.array();
 	mse = error.sum();
 
@@ -274,7 +101,7 @@ void linspace ( Eigen::VectorXi &m, int range_min, int range_max ) {
 
 }
 
-void make_batch ( Matrix &batch, const Eigen::MatrixXf &data, const Eigen::VectorXi &random_numbers ) {
+void make_batch ( Eigen::MatrixXf &batch, const Eigen::MatrixXf &data, const Eigen::VectorXi &random_numbers ) {
 
 	// TODO: this crashes when batch_size is > than data[], not checking the bounds, for example , batch_size = 16, data = 5000, 5000 % 16 != 0, will access 5001 and crash
 	size_t batch_size = random_numbers.rows();
@@ -307,42 +134,42 @@ void mix ( Eigen::VectorXf &a, const Eigen::VectorXf &b, const Eigen::VectorXi &
 
 }
 
-void make_batch ( Matrix &batch, const std::deque<datapoint> &data, const Eigen::VectorXi &random_numbers ) {
+void make_batch ( Eigen::MatrixXf &batch, const datapoints &data, const Eigen::VectorXi &random_numbers ) {
 
 	// TODO: this crashes when batch_size is > than data[], not checking the bounds, for example , batch_size = 16, data = 5000, 5000 % 16 != 0, will access 5001 and crash
 	size_t batch_size = random_numbers.rows();
 
 	for ( size_t i = 0; i < batch_size; i++ )
 
-		batch.col ( i ) = data[random_numbers ( i )].x;
+		batch.col ( i ) = data.x.col(random_numbers ( i ));
 
 
 }
 
-void make_batch ( Matrix &batch, const std::deque<datapoint> &data, const Eigen::MatrixXi &random_numbers ) {
+void make_batch ( Eigen::MatrixXf &batch, const datapoints &data, const Eigen::MatrixXi &random_numbers ) {
 
 	// TODO: this crashes when batch_size is > than data[], not checking the bounds, for example , batch_size = 16, data = 5000, 5000 % 16 != 0, will access 5001 and crash
 	size_t batch_size = random_numbers.cols();
 
 	for ( size_t i = 0; i < batch_size; i++ )
 
-		batch.col ( i ) = data[random_numbers ( 0, i )].x;
+		batch.col ( i ) = data.x.col(random_numbers ( 0, i ));
 
 
 }
 
-void make_targets ( Matrix &targets, const Matrix &encoding, const std::deque<datapoint> &data, Eigen::VectorXi &random_numbers ) {
+void make_targets ( Eigen::MatrixXf &targets, const datapoints &data, Eigen::VectorXi &random_numbers ) {
 
 	size_t batch_size = random_numbers.rows();
 
 	for ( size_t i = 0; i < ( size_t ) batch_size; i++ )
 
-		targets.col ( i ) = encoding.col ( data[random_numbers ( i )].y );
+		targets.col ( i ) = data.y1.col ( random_numbers ( i ) );
 
 
 }
 
-Eigen::VectorXi colwise_max_index ( Matrix &m ) {
+Eigen::VectorXi colwise_max_index ( Eigen::MatrixXf &m ) {
 
 	Eigen::VectorXi indices ( m.cols() );
 
@@ -382,7 +209,7 @@ size_t count_zeros ( Eigen::VectorXi &m ) {
 
 }
 
-size_t count_correct_predictions ( Matrix &p, Matrix &t ) {
+size_t count_correct_predictions ( Eigen::MatrixXf &p, Eigen::MatrixXf &t ) {
 
 	Eigen::VectorXi predicted_classes = colwise_max_index ( p );
 	Eigen::VectorXi target_classes = colwise_max_index ( t );
