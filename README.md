@@ -10,3 +10,28 @@ brew install eigen
 
 #requires CLblas and Eigen
 tested with clblas-2.6 and Eigen 3.3.3
+
+# Optional
+
+CLBlast
+```
+https://github.com/CNugteren/CLBlast
+```
+
+CLTune
+```
+https://github.com/CNugteren/CLTune
+```
+
+# default
+```
+make
+```
+# clBlas
+```
+make CL_BLAS_IMPL=CLBLAS
+```
+# clBLAST
+```
+make CL_BLAS_IMPL=CLBLAST
+```
