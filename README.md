@@ -37,22 +37,34 @@ sudo make install
 
 ```
 
-# clRNG
-https://github.com/clMathLibraries/clRNG
+# clRNG: OpenCL Random Number Generator
+
+```
+git clone https://github.com/clMathLibraries/clRNG
+```
+
+# clProbDist: probability distributions for OpenCL
+
+```
+git clone https://github.com/umontreal-simul/clProbDist
+```
 
 # Optional
 
 CLBlast
+
 ```
-https://github.com/CNugteren/CLBlast
+git clone https://github.com/CNugteren/CLBlast
 ```
 
 CLTune
+
 ```
-https://github.com/CNugteren/CLTune
+git clone https://github.com/CNugteren/CLTune
 ```
 
 # default
+
 ```
 make
 ```

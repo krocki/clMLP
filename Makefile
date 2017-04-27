@@ -1,6 +1,7 @@
 OS := $(shell uname)
 
-CC=g++
+CXX=g++
+GCC=gcc
 
 CFLAGS = -Ofast -Wall -Wextra -Wfatal-errors -std=c++14
 LFLAGS =
@@ -13,23 +14,26 @@ CL_TUNE=0
 
 ifeq ($(CL_BLAS_IMPL),CLBLAS)
 #CLBLAS
-LFLAGS := $(LFLAGS) -lclBLAS
-CFLAGS := $(CFLAGS) -DCLBLAS
+LFLAGS := -lclBLAS $(LFLAGS)
+CFLAGS := -DCLBLAS $(CFLAGS)
 endif
 
 ifeq ($(CL_BLAS_IMPL),CLBLAST)
 #CLBLAST
-LFLAGS := $(LFLAGS) -lclblast
-CFLAGS := $(CFLAGS) -DCLBLAST
+LFLAGS := -lclblast $(LFLAGS)
+CFLAGS := -DCLBLAST $(CFLAGS)
 endif
 
 ifeq ($(CL_TUNE),1)
-LFLAGS := $(LFLAGS) -lcltune
-CFLAGS := $(CFLAGS) -DCLTUNE
+LFLAGS := -lcltune $(LFLAGS)
+CFLAGS := -DCLTUNE $(CFLAGS)
 endif
 
-#CLRNG
-LFLAGS := $(LFLAGS) -lclrng
+#clProbDist
+LFLAGS := -lclProbDist $(LFLAGS)
+
+#clRNG
+LFLAGS := -lclRNG $(LFLAGS)
 
 ifeq ($(OS),Linux)
 		CL_LIB_PATH := /usr/local/cuda-8.0/lib
@@ -39,9 +43,10 @@ ifeq ($(OS),Linux)
   		INCLUDES := $(INCLUDES) -I$(CL_INCLUDE_PATH)
 else
         #OSX
-        LFLAGS := $(LFLAGS) -framework OpenCL
+        LFLAGS := -framework OpenCL $(LFLAGS)
 endif
 
 all:
-	$(CC) -o clmlp ./src/clmlp.cc $(INCLUDES) $(CFLAGS) $(LFLAGS)
-	$(CC) -o clrand ./src/clrand.cc $(INCLUDES) $(CFLAGS) $(LFLAGS)
+	$(CXX) -o clmlp ./src/clmlp.cc $(INCLUDES) $(CFLAGS) $(LFLAGS)
+	#$(CXX) -o clrand ./src/clrand.cc $(INCLUDES) $(CFLAGS) $(LFLAGS)
+	#$(CXX) -o clprobdist ./src/clprobdist.cc $(INCLUDES) $(CFLAGS) $(LFLAGS)
