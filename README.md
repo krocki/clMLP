@@ -17,7 +17,17 @@ brew install eigen
 https://github.com/amd/OpenCL-caffe/wiki/How-to-set-up-clBLAS-and-OpenCL
 ```
 sudo apt-get install libeigen3-dev
+```
+clBLAS
+```
 git clone git@github.com:clMathLibraries/clBLAS.git
+cd clBLAS/src
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PATH=/opt/clBlas -DCMAKE_BUILD_TYPE=Release -DPRECOMPILE_GEMM_PRECISION_SGEMM:BOOL=ON -DPRECOMPILE_GEMM_TRANS_NN:BOOL=ON -DPRECOMPILE_GEMM_TRANS_NT:BOOL=ON-DPRECOMPILE_GEMM_TRANS_TN:BOOL=ON -DPRECOMPILE_GEMM_TRANS_TT:BOOL=ON ..
+make
+sudo make install
+
 ```
 #requires CLblas and Eigen
 tested with clblas-2.6 and Eigen 3.3.3
