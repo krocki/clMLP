@@ -13,7 +13,10 @@ Requires CLBlas and Eigen
 brew install clblas
 brew install eigen
 ```
-
+# Ubuntu:
+```
+sudo apt-get install libeigen3-dev
+```
 #requires CLblas and Eigen
 tested with clblas-2.6 and Eigen 3.3.3
 
