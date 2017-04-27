@@ -2,7 +2,7 @@
 * @Author: kmrocki
 * @Date:   2016-02-24 15:28:10
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-26 16:20:54
+* @Last Modified time: 2017-04-26 21:13:03
 */
 
 #ifndef __CLNN_H__
@@ -20,6 +20,8 @@ class CLNN {
 	std::deque<CLLayer*> layers;
 	cl_matrix<float> batch, targets, errors;
 	cl_matrix<int> random_ints;
+
+	cl_matrix<float> rands;
 
 	const size_t batch_size;
 	const size_t inputs;
@@ -161,6 +163,17 @@ class CLNN {
 		targets = cl_matrix<float>(&ctx, {outputs, batch_size});
 		errors = cl_matrix<float>(&ctx, {outputs, batch_size});
 		random_ints = cl_matrix<int>(&ctx, {batch_size, 1});
+
+		// fixed 64 for now, todo: fix
+		rands = cl_matrix<float>(&ctx, {64, 1});
+
+		// test
+		cl_matrix_rand ( rands, false );
+		rands.sync_host();
+
+		std::cout << "rands" << std::endl;
+		std::cout << rands.ref_host_data << std::endl;
+		std::cout << "rands end" << std::endl;
 
 	}
 

@@ -26,7 +26,7 @@ class clUtils {
 	// static int initResources(cl_resources* res, cl_device_id dev, unsigned int columns, unsigned inputLength, unsigned prox_synapses_per_column);
 	// static void freeResources(cl_resources* res);
 
-	static cl_program compileProgram ( const char* const kernel_file, cl_context cxContext, cl_device_id d );
+	static cl_program compileProgram ( const char* const kernel_file, cl_context cxContext, cl_device_id d, const char* );
 	static void runKernel ( size_t localWorkSize, size_t globalWorkSize, cl_device_id device, cl_command_queue commandQueue, cl_kernel kernel, cl_event* gpuExecution );
 	static void saveBinary ( cl_program program, cl_device_id device, char* name );
 };
@@ -581,8 +581,7 @@ void clUtils::checkError ( const cl_int ciErrNum, const char* const operation ) 
 	}
 }
 
-cl_program clUtils::compileProgram ( const char* const kernel_file, cl_context cxContext,
-                                     cl_device_id d ) {
+cl_program clUtils::compileProgram ( const char* const kernel_file, cl_context cxContext, cl_device_id d, const char* flags = "" ) {
 
 	cl_program cpProgram = NULL;
 	size_t program_length = 0;
@@ -604,7 +603,7 @@ cl_program clUtils::compileProgram ( const char* const kernel_file, cl_context c
 		 */
 
 		char clcompileflags[1024];
-		sprintf ( clcompileflags, "-cl-fast-relaxed-math -cl-mad-enable" );
+		sprintf ( clcompileflags, "-cl-fast-relaxed-math -cl-mad-enable %s", flags );
 		//sprintf ( clcompileflags, "-cl-mad-enable" );
 		ciErrNum = clBuildProgram ( cpProgram, 0, NULL, clcompileflags, NULL, NULL );
 		clUtils::checkError ( ciErrNum, "clBuildProgram" );

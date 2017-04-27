@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 08:06:57
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-26 16:21:08
+* @Last Modified time: 2017-04-26 21:12:16
 */
 
 #ifndef __CL_FUNCTIONS__
@@ -10,14 +10,37 @@
 
 #include <opencl/cl_blas_defs.h>
 #include <opencl/cl_matrix.h>
+#include <opencl/cl_rand.h>
 
 unsigned long cl_flops_performed = 0L;
 
-// void cl_rand ( cl_matrix<float> &x, float range_min = 0.0f, float range_max = 1.0f ) {}
 // void cl_randn ( cl_matrix<float> &x, float mean = 0.0f, float stddev = 1.0f ) {}
 
-
 void cl_matrix_mult ( cl_matrix<float> &c, cl_matrix<float> &a, cl_matrix<float> &b, bool wait );
+
+void cl_matrix_rand ( cl_matrix<float> &y, bool wait = false ) {
+
+	/* Setup the kernel */
+	y.matrix_ctx->err = clSetKernelArg ( y.matrix_ctx->kernels_rand["uniform01"], 0, sizeof( bufIn ),  &bufIn );
+
+	y.matrix_ctx->err = clSetKernelArg ( y.matrix_ctx->kernels_rand["uniform01"], 1, sizeof ( cl_mem ), ( void * ) &y.device_data );
+
+	if ( y.matrix_ctx->err != CL_SUCCESS ) {
+		printf ( "cl_matrix_rand : clSetKernelArg failed with %d\n", y.matrix_ctx->err );
+
+	}
+
+	/* Execute the kernel and read back results */
+	y.matrix_ctx->err = clEnqueueNDRangeKernel(y.matrix_ctx->queue(), y.matrix_ctx->kernels_rand["uniform01"], 1, NULL, &numWorkItems, NULL, 0, NULL, &y.matrix_ctx->event);
+
+	if ( y.matrix_ctx->err != CL_SUCCESS ) {
+		printf ( "cl_matrix_rand : clEnqueueNDRangeKernel failed with %d\n", y.matrix_ctx->err );
+
+	}
+
+	if ( !y.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &y.matrix_ctx->event );
+
+}
 
 void cl_gather_data ( cl_matrix<float> &src, cl_matrix<float> &dst, const cl_matrix<int> &idxs, bool wait = false) {
 

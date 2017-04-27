@@ -6,8 +6,15 @@ MultiLayer Perceptron in OpenCL
 ./clmlp <device_number>
 ```
 
+
+
+
+tested with clblas-2.6 and Eigen 3.3.3
+on AMD (D700), NVIDIA (Titan X) and Intel (Iris) GPUs
+
 # installation
-Requires CLBlas and Eigen
+Requires CLBlas, clRNG and Eigen
+
 # OS X:
 ```
 brew install clblas
@@ -29,8 +36,9 @@ make
 sudo make install
 
 ```
-#requires CLblas and Eigen
-tested with clblas-2.6 and Eigen 3.3.3
+
+#clRNG
+https://github.com/clMathLibraries/clRNG
 
 # Optional
 
