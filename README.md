@@ -37,7 +37,7 @@ sudo make install
 
 ```
 
-#clRNG
+# clRNG
 https://github.com/clMathLibraries/clRNG
 
 # Optional
