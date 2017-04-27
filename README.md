@@ -16,6 +16,7 @@ brew install eigen
 # Ubuntu:
 ```
 sudo apt-get install libeigen3-dev
+git clone git@github.com:clMathLibraries/clBLAS.git
 ```
 #requires CLblas and Eigen
 tested with clblas-2.6 and Eigen 3.3.3
