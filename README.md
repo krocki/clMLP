@@ -14,6 +14,7 @@ brew install clblas
 brew install eigen
 ```
 # Ubuntu:
+https://github.com/amd/OpenCL-caffe/wiki/How-to-set-up-clBLAS-and-OpenCL
 ```
 sudo apt-get install libeigen3-dev
 git clone git@github.com:clMathLibraries/clBLAS.git
