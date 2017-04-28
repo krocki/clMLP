@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 03:59:24
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-27 15:10:41
+* @Last Modified time: 2017-04-27 21:01:25
 */
 
 #ifdef __APPLE__
@@ -47,6 +47,7 @@ class cl_ctx {
 	Dict<cl_kernel> kernels1; // unary
 	Dict<cl_kernel> kernels2; // binary
 	Dict<cl_kernel> kernels3; // ternary
+	Dict<cl_kernel> kernels3_local; // ternary
 	Dict<cl_kernel> kernels4; // etc
 
 	Dict<cl_kernel> kernels_mat_scalar;
@@ -172,6 +173,7 @@ class cl_ctx {
 		kernels3["dlogistic"] = clCreateKernel ( program_elementwise, "dlogistic", &err );
 		kernels3["dsoftmax"] = clCreateKernel ( program_elementwise, "dsoftmax", &err );
 		kernels3["fmad"] = clCreateKernel ( program_elementwise, "fmad", &err );
+		kernels3_local["fmad"] = clCreateKernel ( program_elementwise, "fmad_local", &err );
 
 		kernels4["gather_data"] = clCreateKernel ( program_elementwise, "gather_data", &err );
 
@@ -236,6 +238,8 @@ class cl_ctx {
 			clReleaseKernel ( kernels2.matrices[i] );
 		for ( size_t i = 0; i < kernels3.matrices.size(); i++ )
 			clReleaseKernel ( kernels3.matrices[i] );
+		for ( size_t i = 0; i < kernels3_local.matrices.size(); i++ )
+			clReleaseKernel ( kernels3_local.matrices[i] );
 		for ( size_t i = 0; i < kernels4.matrices.size(); i++ )
 			clReleaseKernel ( kernels4.matrices[i] );
 		for ( size_t i = 0; i < kernels_mat_scalar.matrices.size(); i++ )
