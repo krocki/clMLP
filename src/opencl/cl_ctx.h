@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 03:59:24
 * @Last Modified by:   Kamil Rocki
-* @Last Modified time: 2017-04-28 16:19:30
+* @Last Modified time: 2017-04-28 16:32:04
 */
 
 #ifdef __APPLE__
@@ -22,10 +22,6 @@
 
 #ifndef __CL_CTX_H__
 #define __CL_CTX_H__
-
-bool compareByTime ( const prof_data &a, const prof_data &b ) {
-	return a.time < b.time;
-}
 
 class cl_ctx {
 
@@ -91,67 +87,6 @@ class cl_ctx {
 				profiling_data[key].key = key;
 			}
 			
-		}
-		
-		void show_profiling_data ( bool sorted = true ) {
-		
-			unsigned long total_cl_flops_performed  = 0L;
-			unsigned long total_bytes_in  = 0L;
-			unsigned long total_bytes_out  = 0L;
-			double total_cl_time = 0.0;
-			
-			end = std::chrono::system_clock::now();
-			double difference = ( double ) std::chrono::duration_cast<std::chrono::microseconds> ( end - start ).count() / ( double ) 1e6;
-			std::cout << "T = " << difference << " s" << std::endl;
-			
-			//first pass
-			for ( size_t i = 0; i < profiling_data.entries.size(); i ++ ) {
-			
-				if ( profiling_enabled ) {
-					total_cl_flops_performed += profiling_data.entries[ i ].flops;
-					total_cl_time += profiling_data.entries[ i ].time;
-					total_bytes_in += profiling_data.entries[ i ].bytes_in;
-					total_bytes_out += profiling_data.entries[ i ].bytes_out;
-				}
-				
-			}
-			
-			std::vector<size_t> sorted_idxs;
-			
-			if ( sorted ) {
-				//by time desc
-				sorted_idxs = profiling_data.sorted_idxs ( [&] ( size_t i1, size_t i2 ) {return profiling_data.entries[i1].time > profiling_data.entries[i2].time;} );
-				//by flop/s desc
-				//sorted_idxs = profiling_data.sorted_idxs ( [&] ( size_t i1, size_t i2 ) {return profiling_data.entries[i1].flops / profiling_data.entries[i1].time > profiling_data.entries[i2].flops / profiling_data.entries[i2].time;} );
-				//alphabetically asc
-				//sorted_idxs = profiling_data.sorted_idxs ( [&] ( size_t i1, size_t i2 ) {return profiling_data.entries[i1].key < profiling_data.entries[i2].key;} );
-			}
-			else {
-				sorted_idxs.resize ( profiling_data.entries.size() );
-				std::iota ( sorted_idxs.begin(), sorted_idxs.end(), 0 );
-			}
-			
-			//second pass
-			for ( size_t i = 0; i < profiling_data.entries.size(); i ++ ) {
-			
-				if ( profiling_enabled ) {
-					std::cout << std::setw ( 40 ) << profiling_data.reverse_namemap[ sorted_idxs[i] ];
-					profiling_data.entries[ sorted_idxs[i] ].show ( difference, total_cl_time, total_cl_flops_performed, total_bytes_in, total_bytes_out );
-					
-				}
-				
-				profiling_data.entries[ sorted_idxs[i] ].reset();
-				
-			}
-			
-			std::cout << std::endl;
-			std::cout << "Total profiled time: " << 1e-9 * total_cl_time << " s" << std::endl;
-			std::cout << "Total compute: " << 1e-9 * ( ( long double ) total_cl_flops_performed / ( long double ) difference ) << " GF/s" << std::endl;
-			std::cout << "Total in: " << 1e-9 * ( ( long double ) total_bytes_in ) << " GB" << std::endl;
-			std::cout << "Total out: " << 1e-9 * ( ( long double ) total_bytes_out ) << " GB" << std::endl;
-			std::cout << std::endl;
-			
-			start = std::chrono::system_clock::now();
 		}
 		
 		// TODO: requested_device_type = GPU/CPU, ...
@@ -364,6 +299,76 @@ class cl_ctx {
 		
 		cl_context &ctx() { return _ctx; }
 		cl_command_queue &queue() { return _queue; }
+		
+		void show_profiling_data ( sort_method_type sort_method = SORT_BY_TIME_DESC ) {
+		
+			unsigned long total_cl_flops_performed  = 0L;
+			unsigned long total_bytes_in  = 0L;
+			unsigned long total_bytes_out  = 0L;
+			double total_cl_time = 0.0;
+			
+			end = std::chrono::system_clock::now();
+			double difference = ( double ) std::chrono::duration_cast<std::chrono::microseconds> ( end - start ).count() / ( double ) 1e6;
+			std::cout << "T = " << difference << " s" << std::endl;
+			
+			//first pass
+			for ( size_t i = 0; i < profiling_data.entries.size(); i ++ ) {
+			
+				if ( profiling_enabled ) {
+					total_cl_flops_performed += profiling_data.entries[ i ].flops;
+					total_cl_time += profiling_data.entries[ i ].time;
+					total_bytes_in += profiling_data.entries[ i ].bytes_in;
+					total_bytes_out += profiling_data.entries[ i ].bytes_out;
+				}
+				
+			}
+			
+			std::vector<size_t> sorted_idxs;
+			
+			switch ( sort_method ) {
+			
+				case NO_SORTING:
+					sorted_idxs.resize ( profiling_data.entries.size() );
+					std::iota ( sorted_idxs.begin(), sorted_idxs.end(), 0 );
+					break;
+				case SORT_BY_TIME_DESC:
+					sorted_idxs = profiling_data.sorted_idxs ( [&] ( size_t i1, size_t i2 ) {return profiling_data.entries[i1].time > profiling_data.entries[i2].time;} );
+					break;
+				case SORT_BY_FLOPS_DESC:
+					sorted_idxs = profiling_data.sorted_idxs ( [&] ( size_t i1, size_t i2 ) {return profiling_data.entries[i1].flops / profiling_data.entries[i1].time > profiling_data.entries[i2].flops / profiling_data.entries[i2].time;} );
+					break;
+				case SORT_BY_NAME:
+					sorted_idxs = profiling_data.sorted_idxs ( [&] ( size_t i1, size_t i2 ) {return profiling_data.entries[i1].key < profiling_data.entries[i2].key;} );
+					break;
+				case SORT_BY_NAME_DESC:
+					sorted_idxs = profiling_data.sorted_idxs ( [&] ( size_t i1, size_t i2 ) {return profiling_data.entries[i1].key > profiling_data.entries[i2].key;} );
+					break;
+			}
+			
+			//second pass
+			for ( size_t i = 0; i < profiling_data.entries.size(); i ++ ) {
+			
+				if ( profiling_enabled ) {
+					std::cout << std::setw ( 40 ) << profiling_data.reverse_namemap[ sorted_idxs[i] ];
+					profiling_data.entries[ sorted_idxs[i] ].show ( difference, total_cl_time, total_cl_flops_performed, total_bytes_in, total_bytes_out );
+					
+				}
+				
+				profiling_data.entries[ sorted_idxs[i] ].reset();
+				
+			}
+			
+			if ( profiling_enabled ) {
+				std::cout << std::endl;
+				std::cout << "Total profiled time: " << 1e-9 * total_cl_time << " s" << std::endl;
+				std::cout << "Total compute: " << 1e-9 * ( ( long double ) total_cl_flops_performed / ( long double ) difference ) << " GF/s" << std::endl;
+				std::cout << "Total in: " << 1e-9 * ( ( long double ) total_bytes_in ) << " GB" << std::endl;
+				std::cout << "Total out: " << 1e-9 * ( ( long double ) total_bytes_out ) << " GB" << std::endl;
+				std::cout << std::endl;
+			}
+			
+			start = std::chrono::system_clock::now();
+		}
 		
 };
 

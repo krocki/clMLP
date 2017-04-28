@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-28 12:49:03
 * @Last Modified by:   Kamil Rocki
-* @Last Modified time: 2017-04-28 16:14:52
+* @Last Modified time: 2017-04-28 16:32:20
 */
 
 #ifndef __CL_PROF_H__
@@ -10,6 +10,8 @@
 
 #include <string>
 #include <utils.h>
+
+typedef enum sort_method_type { NO_SORTING = 0, SORT_BY_TIME_DESC = 1, SORT_BY_FLOPS_DESC = 2, SORT_BY_NAME = 3, SORT_BY_NAME_DESC = 4} sort_method_type;
 
 class prof_data {
 

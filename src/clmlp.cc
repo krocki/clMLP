@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-24 16:14:23
 * @Last Modified by:   Kamil Rocki
-* @Last Modified time: 2017-04-28 16:16:46
+* @Last Modified time: 2017-04-28 16:32:59
 */
 
 #include <opencl/cl_utils.h>
@@ -68,7 +68,7 @@ void nntest ( int device, cl_device_type dev_type, int enable_profiling ) {
 		
 		nn.train ( train_data, learning_rate, 1000, show_training_loss );
 		
-		ocl.show_profiling_data();
+		ocl.show_profiling_data ( SORT_BY_TIME_DESC );
 		
 		nn.test ( test_data );
 		
