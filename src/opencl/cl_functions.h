@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 08:06:57
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-27 15:10:53
+* @Last Modified time: 2017-04-27 21:09:14
 */
 
 #ifndef __CL_FUNCTIONS__
@@ -59,6 +59,39 @@ void cl_matrix_rand ( cl_matrix<float> &y, bool wait = false ) {
 
 	if ( y.matrix_ctx->err != CL_SUCCESS )
 		printf ( "cl_matrix_rand : clEnqueueNDRangeKernel failed with %d\n", y.matrix_ctx->err );
+
+
+	if ( !y.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &y.matrix_ctx->event );
+
+}
+
+void cl_matrix_randi ( cl_matrix<int> &y, int range_min = 0, int range_max = 99, bool wait = false ) {
+
+	unsigned int count = y.rows() * y.cols();
+	unsigned int n = count / numWorkItems + 1;
+
+	int r_min = range_min;
+	int r_max = range_max;
+
+	if ( r_max <= r_min )  printf ( "r_max <= r_min : r_min = %d r_max = %d!\n", r_min, r_max );
+
+	/* Setup the kernel */
+	y.matrix_ctx->err = clSetKernelArg ( y.matrix_ctx->kernels_rand["randi"], 0, sizeof ( bufInUniform ),  &bufInUniform );
+	y.matrix_ctx->err = clSetKernelArg ( y.matrix_ctx->kernels_rand["randi"], 1, sizeof ( cl_mem ), ( void * ) &y.device_data );
+	y.matrix_ctx->err = clSetKernelArg ( y.matrix_ctx->kernels_rand["randi"], 2, sizeof ( int ), ( void * ) &r_min );
+	y.matrix_ctx->err = clSetKernelArg ( y.matrix_ctx->kernels_rand["randi"], 3, sizeof ( int ), ( void * ) &r_max );
+	y.matrix_ctx->err =	clSetKernelArg ( y.matrix_ctx->kernels_rand["randi"], 4, sizeof ( unsigned int ), ( void * ) &n );
+	y.matrix_ctx->err = clSetKernelArg ( y.matrix_ctx->kernels_rand["randi"], 5, sizeof ( unsigned int ), ( void * ) &count );
+
+
+	if ( y.matrix_ctx->err != CL_SUCCESS )
+		printf ( "cl_matrix_randi : clSetKernelArg failed with %d\n", y.matrix_ctx->err );
+
+	/* Execute the kernel and read back results */
+	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), y.matrix_ctx->kernels_rand["randi"], 1, NULL, &numWorkItems, NULL, 0, NULL, &y.matrix_ctx->event );
+
+	if ( y.matrix_ctx->err != CL_SUCCESS )
+		printf ( "cl_matrix_randi : clEnqueueNDRangeKernel failed with %d\n", y.matrix_ctx->err );
 
 
 	if ( !y.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &y.matrix_ctx->event );
@@ -137,7 +170,7 @@ void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, cl_matrix<float>
 }
 
 // y = x op z
-void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, float z, std::string func, bool wait = false ) {
+void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, float z, std::string func, bool localmem = false, bool wait = false ) {
 
 	unsigned int count = y.rows() * y.cols();
 	float local_z = z;
@@ -149,7 +182,10 @@ void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, float z, std::st
 
 	size_t global_work_size = ( ( count / y.matrix_ctx->local_work_size ) + 1 ) * y.matrix_ctx->local_work_size;
 
-	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), y.matrix_ctx->kernels3[func], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->event );
+	cl_kernel& kernel = y.matrix_ctx->kernels3[func];
+	if (localmem) kernel = y.matrix_ctx->kernels3_local[func];
+
+	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), kernel, 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->event );
 
 	if ( !y.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &y.matrix_ctx->event );
 

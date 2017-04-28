@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 03:59:24
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-27 21:01:25
+* @Last Modified time: 2017-04-27 21:06:14
 */
 
 #ifdef __APPLE__
@@ -47,7 +47,8 @@ class cl_ctx {
 	Dict<cl_kernel> kernels1; // unary
 	Dict<cl_kernel> kernels2; // binary
 	Dict<cl_kernel> kernels3; // ternary
-	Dict<cl_kernel> kernels3_local; // ternary
+	Dict<cl_kernel> kernels3_local;
+
 	Dict<cl_kernel> kernels4; // etc
 
 	Dict<cl_kernel> kernels_mat_scalar;
@@ -180,6 +181,7 @@ class cl_ctx {
 		kernels_mat_scalar["sub"] = clCreateKernel ( program_elementwise, "sub1", &err );
 
 		kernels_rand["uniform01"] = clCreateKernel ( program_rand, "uniform01", &err );
+		kernels_rand["randi"] = clCreateKernel ( program_rand, "randi", &err );
 		kernels_rand["normal"] = clCreateKernel ( program_rand, "normal", &err );
 
 		if ( err != CL_SUCCESS ) {

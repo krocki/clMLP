@@ -5,34 +5,27 @@
 
 #ifdef FAST_MATH
 #define exp_function native_exp
+#define fmad_function(a,b,c) (mad ((a), (b), (c)))
+#define logistic_function(x) (native_recip ( 1.0f + native_exp ( -(x) ) ))
 #else
 #define exp_function exp
+#define fmad_function(a,b,c) ((c) + (a) * (b))
+#define logistic_function(x) (1.0f / ( 1.0f + exp ( -(x) ) ))
 #endif
 
 __kernel void logistic1 ( __global float *inputoutput, const unsigned int count ) {
 
 	int i = get_global_id ( 0 );
+	if ( i < count ) inputoutput[i] = logistic_function(inputoutput[i]);
 
-	if ( i < count ) {
-#ifdef FAST_MATH
-		inputoutput[i] = native_recip ( 1.0f + exp_function ( -inputoutput[i] ) );
-#else
-		inputoutput[i] = 1.0f / ( 1.0f + exp ( -inputoutput[i] ) );
-#endif
-	}
 }
 
 __kernel void logistic2 ( __global float *output, __global float *input, const unsigned int count ) {
 
 	int i = get_global_id ( 0 );
+	if ( i < count ) output[i] = logistic_function(input[i]);
 
-	if ( i < count ) {
-#ifdef FAST_MATH
-		output[i] = native_recip ( 1.0f + exp_function ( -input[i] ) );
-#else
-		output[i] = 1.0f / ( 1.0f + exp ( -input[i] ) );
-#endif
-	}
+
 }
 
 __kernel void rectify1 ( __global float *inputoutput, const unsigned int count ) {
@@ -52,24 +45,20 @@ __kernel void rectify2 ( __global float *output, __global float *input, const un
 __kernel void expf1 ( __global float *inputoutput, const unsigned int count ) {
 
 	int i = get_global_id ( 0 );
-	if ( i < count )
-		inputoutput[i] = exp_function ( inputoutput[i] );
+	if ( i < count ) inputoutput[i] = exp_function ( inputoutput[i] );
 
 }
 
 __kernel void expf2 ( __global float *output, __global float *input, const unsigned int count ) {
 
 	int i = get_global_id ( 0 );
-	if ( i < count )
-		output[i] = exp_function ( input[i] );
+	if ( i < count ) output[i] = exp_function ( input[i] );
 }
 
 __kernel void sub1 ( __global float *output, __global float *input, const unsigned int val, const unsigned int count ) {
 
 	int i = get_global_id ( 0 );
-
-	if ( i < count )
-		output[i] -= input[val];
+	if ( i < count ) output[i] -= input[val];
 
 }
 
@@ -117,13 +106,10 @@ __kernel void colsumdiv ( __global float *output, __global float *input, const u
 
 		output[i] = 0.0f;
 
-		for ( int k = 0; k < rows; k++ )
-			output[i] += input[k + i * rows];
-
-
-		for ( int k = 0; k < rows; k++ )
-			input[k + i * rows] /= output[i];
-
+#pragma unroll
+		for ( int k = 0; k < rows; k++ ) { output[i] += input[k + i * rows]; }
+#pragma unroll
+		for ( int k = 0; k < rows; k++ ) { input[k + i * rows] /= output[i]; }
 
 	}
 
@@ -147,12 +133,11 @@ __kernel void fmad_local ( __global float *p, __global float *d, const float a, 
 		local_a = a;
 		local_p[l] = p[g * LOCAL_SIZE + l];
 		local_d[l] = d[g * LOCAL_SIZE + l];
-		barrier(CLK_LOCAL_MEM_FENCE);
-
-		//local_p[l] = mad (local_d[l], local_a, local_p[l]);
-		local_p[l] += local_d[l] * local_a;
 
 		barrier(CLK_LOCAL_MEM_FENCE);
+
+		local_p[l] = fmad_function(local_d[l], local_a, local_p[l]);
+
 		p[g * LOCAL_SIZE + l] = local_p[l];
 
 	}
@@ -162,10 +147,8 @@ __kernel void fmad ( __global float *p, __global float *d, const float a, const 
 
 	int i = get_global_id ( 0 );
 
-	if ( i < count )
-
-		p[i] += d[i] * a;
-
+	//p[i] += d[i] * a;
+	if ( i < count ) p[i] = fmad_function(d[i], a, p[i]);
 
 }
 
@@ -177,10 +160,7 @@ __kernel void gather_data ( __global float *in, __global float *out, __global in
 
 	unsigned int src_idx = idxs[k] * n;
 
-	if ( i < count )
-
-		out[i] = in[src_idx + l];
-
+	if ( i < count ) out[i] = in[src_idx + l];
 
 }
 
