@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-01 19:33:21
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-01 20:46:48
+* @Last Modified time: 2017-04-28 13:19:06
 *
 *	m = Dict(
 
@@ -14,7 +14,7 @@
 		}
 	)
 
-	will make a 2 sub-matrices "W" and "U" of dimensions M x N and X x Y
+	will make a 2 sub-entries "W" and "U" of dimensions M x N and X x Y
 	respectively;
 
 	later, m['W'] will return the first matrix and m['U'] the second one
@@ -33,50 +33,28 @@ class Dict {
 
   public:
 
-	std::vector<T> matrices;
+	std::vector<T> entries;
 	std::string name;
 	std::map<std::string, size_t> namemap;
+	std::map<size_t, std::string> reverse_namemap;
 
 	Dict<T>() = default;
-
-	/* the main constructor */
-	Dict<T> ( std::string _name,
-	          std::initializer_list<std::tuple<std::string, size_t, size_t>>
-	          args, std::string id ) : name ( _name + " " + id ) {
-
-		add ( args );
-
-	}
-
-	void add (
-	    std::initializer_list<std::tuple<std::string, size_t, size_t>>
-	    args ) {
-
-		for ( auto i : args ) {
-
-			namemap[std::get<0> ( i )] = matrices.size();
-			matrices.push_back ( T ( std::get<1> ( i ),
-			                         std::get<2> ( i ) ) );
-
-			matrices.back().setZero();
-
-		}
-
-	}
 
 	Dict<T> ( const Dict<T> &other ) {
 
 		namemap = other.namemap;
+		reverse_namemap = other.reverse_namemap;
 		name = other.name;
-		matrices = other.matrices;
+		entries = other.entries;
 
 	}
 
 	Dict<T> &operator= ( const Dict<T> &other ) {
 
 		namemap = other.namemap;
+		reverse_namemap = other.reverse_namemap;
 		name = other.name;
-		matrices = other.matrices;
+		entries = other.entries;
 
 		return *this;
 
@@ -86,10 +64,11 @@ class Dict {
 	Dict<T> &operator= ( const Dict<otherType> &other ) {
 
 		namemap = other.namemap;
+		reverse_namemap = other.reverse_namemap;
 		name = other.name;
 
-		for ( size_t i = 0; i < matrices.size(); i++ )
-			matrices[i] = other.matrices[i];
+		for ( size_t i = 0; i < entries.size(); i++ )
+			entries[i] = other.entries[i];
 
 		return *this;
 
@@ -105,12 +84,13 @@ class Dict {
 
 		if ( namemap.find ( key ) == namemap.end() ) {
 
-			namemap[key] = matrices.size();
-			matrices.push_back(T());
+			namemap[key] = entries.size();
+			reverse_namemap[entries.size()] = key;
+			entries.resize(entries.size() + 1);
 
 		}
 
-		return matrices[namemap[key]];
+		return entries[namemap[key]];
 
 	}
 
@@ -118,19 +98,13 @@ class Dict {
 
 		if ( namemap.find ( key ) == namemap.end() ) {
 
-			namemap[key] = matrices.size();
-			matrices.push_back(T());
+			namemap[key] = entries.size();
+			reverse_namemap[entries.size()] = key;
+			entries.resize(entries.size() + 1);
 
 		}
 
-		return &(matrices[namemap[key]]);
-
-	}
-
-	void zero() {
-
-		for ( size_t i = 0; i < matrices.size(); i++ )
-			matrices[i].setZero();
+		return &(entries[namemap[key]]);
 
 	}
 
@@ -139,7 +113,7 @@ class Dict {
 
 		archive ( name );
 		archive ( namemap );
-		archive ( matrices );
+		archive ( entries );
 
 	}
 

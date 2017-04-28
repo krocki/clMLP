@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 08:06:57
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-27 21:09:14
+* @Last Modified time: 2017-04-28 13:56:58
 */
 
 #ifndef __CL_FUNCTIONS__
@@ -111,8 +111,7 @@ void cl_gather_data ( cl_matrix<float> &src, cl_matrix<float> &dst, const cl_mat
 
 	size_t global_work_size = ( ( count / dst.matrix_ctx->local_work_size ) + 1 ) * dst.matrix_ctx->local_work_size;
 
-	dst.matrix_ctx->err = clEnqueueNDRangeKernel ( dst.matrix_ctx->queue(), dst.matrix_ctx->kernels4["gather_data"], 1, NULL, &global_work_size, &dst.matrix_ctx->local_work_size, 0, NULL,
-	                      &dst.matrix_ctx->event );
+	dst.matrix_ctx->err = clEnqueueNDRangeKernel ( dst.matrix_ctx->queue(), dst.matrix_ctx->kernels4["gather_data"], 1, NULL, &global_work_size, &dst.matrix_ctx->local_work_size, 0, NULL, &dst.matrix_ctx->event );
 
 	if ( !dst.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &dst.matrix_ctx->event );
 
@@ -128,9 +127,22 @@ void cl_elementwise ( cl_matrix<float> &y, std::string func, bool wait = false )
 
 	size_t global_work_size = ( ( count / y.matrix_ctx->local_work_size ) + 1 ) * y.matrix_ctx->local_work_size;
 
-	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), y.matrix_ctx->kernels1[func], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->event );
+	std::string func_string = "cl_elementwise_1_" + func;
+	if (y.matrix_ctx->profiling_enabled) clFinish(y.matrix_ctx->queue());
 
-	if ( !y.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &y.matrix_ctx->event );
+	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), y.matrix_ctx->kernels1[func], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->cl_events[func_string] );
+
+	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled ) {
+
+
+		clWaitForEvents ( 1, &y.matrix_ctx->cl_events[func_string] );
+		y.matrix_ctx->get_profiling_data(func_string);
+
+	}
+
+	y.matrix_ctx->profiling_data[func_string].flops += y.rows() * y.cols();
+	y.matrix_ctx->profiling_data[func_string].bytes_out += y.rows() * y.cols() * sizeof(float);
+	y.matrix_ctx->profiling_data[func_string].bytes_in += y.rows() * y.cols() * sizeof(float);
 
 }
 
@@ -145,9 +157,22 @@ void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, std::string func
 
 	size_t global_work_size = ( ( count / y.matrix_ctx->local_work_size ) + 1 ) * y.matrix_ctx->local_work_size;
 
-	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), y.matrix_ctx->kernels2[func], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->event );
+	std::string func_string = "cl_elementwise_2_" + func;
+	if (y.matrix_ctx->profiling_enabled) clFinish(y.matrix_ctx->queue());
 
-	if ( !y.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &y.matrix_ctx->event );
+	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), y.matrix_ctx->kernels2[func], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->cl_events[func_string] );
+
+	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled ) {
+
+
+		clWaitForEvents ( 1, &y.matrix_ctx->cl_events[func_string] );
+		y.matrix_ctx->get_profiling_data(func_string);
+
+	}
+
+	y.matrix_ctx->profiling_data[func_string].flops += y.rows() * y.cols();
+	y.matrix_ctx->profiling_data[func_string].bytes_out += y.rows() * y.cols() * sizeof(float);
+	y.matrix_ctx->profiling_data[func_string].bytes_in += x.rows() * x.cols() * sizeof(float);
 
 }
 
@@ -181,13 +206,24 @@ void cl_elementwise ( cl_matrix<float> &y, cl_matrix<float> &x, float z, std::st
 	clSetKernelArg ( y.matrix_ctx->kernels3[func], 3, sizeof ( unsigned int ), ( void * ) &count );
 
 	size_t global_work_size = ( ( count / y.matrix_ctx->local_work_size ) + 1 ) * y.matrix_ctx->local_work_size;
+	std::string func_string = "cl_elementwise_3s_" + func;
+	if (y.matrix_ctx->profiling_enabled) clFinish(y.matrix_ctx->queue());
 
 	cl_kernel& kernel = y.matrix_ctx->kernels3[func];
-	if (localmem) kernel = y.matrix_ctx->kernels3_local[func];
+	if (localmem) {kernel = y.matrix_ctx->kernels3_local[func]; func_string += "_lmem"; }
 
-	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), kernel, 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->event );
+	y.matrix_ctx->err = clEnqueueNDRangeKernel ( y.matrix_ctx->queue(), kernel, 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->cl_events[func_string] );
 
-	if ( !y.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &y.matrix_ctx->event );
+	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled ) {
+
+		clWaitForEvents ( 1, &y.matrix_ctx->cl_events[func_string] );
+		y.matrix_ctx->get_profiling_data(func_string);
+
+	}
+
+	y.matrix_ctx->profiling_data[func_string].flops += y.rows() * y.cols();
+	y.matrix_ctx->profiling_data[func_string].bytes_out += y.rows() * y.cols() * sizeof(float);
+	y.matrix_ctx->profiling_data[func_string].bytes_in += x.rows() * x.cols() * sizeof(float);
 
 }
 
@@ -332,8 +368,11 @@ int cl_matrix_mult ( cl_matrix<float> &c, cl_matrix<float> &a, cl_matrix<float> 
 
 	CL_BLAS_STATUS_TYPE status;
 
-	status = CL_BLAS_SGEMM ( order, transA, transB, M, N, K, alpha, ( cl_mem ) a.device_data, offset_a, lda, ( cl_mem ) b.device_data, offset_b, ldb, beta, ( cl_mem ) c.device_data, offset_c, ldc, 1,
-	                         &c.matrix_ctx->queue(), 0, NULL, &c.matrix_ctx->event );
+	std::string func_string = "cl_matrix_mult";
+
+	if (c.matrix_ctx->profiling_enabled) clFinish(c.matrix_ctx->queue());
+
+	status = CL_BLAS_SGEMM ( order, transA, transB, M, N, K, alpha, ( cl_mem ) a.device_data, offset_a, lda, ( cl_mem ) b.device_data, offset_b, ldb, beta, ( cl_mem ) c.device_data, offset_c, ldc, 1, &c.matrix_ctx->queue(), 0, NULL, &c.matrix_ctx->cl_events[func_string] );
 
 	if ( status != CL_BLAS_SUCCESS_CODE ) {
 
@@ -344,14 +383,19 @@ int cl_matrix_mult ( cl_matrix<float> &c, cl_matrix<float> &a, cl_matrix<float> 
 
 	else {
 
-		if ( !c.matrix_ctx->asynchronous || wait ) clWaitForEvents ( 1, &c.matrix_ctx->event );
+		if ( (!c.matrix_ctx->asynchronous || wait) || c.matrix_ctx->profiling_enabled ) {
+
+			clWaitForEvents ( 1, &c.matrix_ctx->cl_events[func_string] );
+			c.matrix_ctx->get_profiling_data(func_string);
+
+		}
+
+		c.matrix_ctx->profiling_data[func_string].flops += M * N * K * 2;
+		c.matrix_ctx->profiling_data[func_string].bytes_out += c.rows() * c.cols() * sizeof(float);
+		c.matrix_ctx->profiling_data[func_string].bytes_in += (a.rows() * a.cols() + b.rows() * b.cols()) * sizeof(float);
+
+		return 0;
 
 	}
-
-	cl_flops_performed += M * N * K * 2;
-
-	return 0;
-
 }
-
 #endif

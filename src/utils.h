@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-03-03 15:22:47
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-25 21:24:53
+* @Last Modified time: 2017-04-28 13:25:55
 */
 
 #ifndef __UTIL_MAIN_H__
@@ -39,8 +39,6 @@ void filterNaNInf ( Eigen::MatrixXf &m ) {
 	} );
 
 }
-
-
 
 // time/date functions
 

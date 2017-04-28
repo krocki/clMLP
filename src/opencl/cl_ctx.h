@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-04-25 03:59:24
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-27 21:06:14
+* @Last Modified time: 2017-04-28 13:53:26
 */
 
 #ifdef __APPLE__
@@ -17,7 +17,7 @@
 
 #include <opencl/cl_blas_defs.h>
 #include <opencl/cl_rand.h>
-
+#include <opencl/cl_prof.h>
 #include <containers/dict.h>
 
 #ifndef __CL_CTX_H__
@@ -40,9 +40,15 @@ class cl_ctx {
   public:
 
 	bool asynchronous = true;
+	bool profiling_enabled = true;
+	bool ooo_exec_enabled = false;
 
 	cl_int err;
 	cl_event event = NULL;
+
+	// for profiling
+	Dict<cl_event> cl_events;
+	Dict<prof_data> profiling_data;
 
 	Dict<cl_kernel> kernels1; // unary
 	Dict<cl_kernel> kernels2; // binary
@@ -59,6 +65,32 @@ class cl_ctx {
 
 	bool get_workgroup_size_from_device = false;
 	size_t local_work_size = 64;
+
+	cl_ctx(bool enable_profiling) : profiling_enabled(enable_profiling) {}
+
+	void get_profiling_data(std::string key) {
+
+		cl_ulong time_start, time_end;
+		double total_time;
+
+		clGetEventProfilingInfo(cl_events[key], CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
+		clGetEventProfilingInfo(cl_events[key], CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+		total_time = time_end - time_start;
+
+		profiling_data[key].time += total_time;
+
+	}
+
+	void show_profiling_data() {
+
+		for (size_t i = 0; i < profiling_data.entries.size(); i ++) {
+
+			std::cout << std::setw(40) << profiling_data.reverse_namemap[i];
+			profiling_data.entries[i].show();
+			profiling_data.entries[i].reset();
+		}
+
+	}
 
 	// TODO: requested_device_type = GPU/CPU, ...
 	int init ( int requested_device = 0, cl_device_type dev_type = CL_DEVICE_TYPE_ALL ) {
@@ -108,13 +140,22 @@ class cl_ctx {
 			local_work_size = dev_properties.workgroup_size;
 
 		//props[1] = (cl_context_properties)platform;
+
 		_ctx = clCreateContext ( NULL, 1, &device, NULL, NULL, &err );
 		if ( err != CL_SUCCESS ) {
 			printf ( "clCreateContext() failed with %d\n", err );
 			return 1;
 		}
 
-		_queue = clCreateCommandQueue ( _ctx, device, 0, &err );
+		/* create command queue */
+		cl_command_queue_properties queue_properties = 0;
+		if (profiling_enabled) queue_properties |= CL_QUEUE_PROFILING_ENABLE;
+		if (ooo_exec_enabled) queue_properties |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+		const std::string queue_color_message = "\x1b[33m[ profiling_enabled = " + std::to_string ( profiling_enabled ) + " ]\x1b[0m\n" + "\x1b[33m[ ooo_exec_enabled = " + std::to_string ( ooo_exec_enabled ) + " ]\x1b[0m\n";
+		std::cout << std::endl << queue_color_message << std::endl;
+
+		_queue = clCreateCommandQueue ( _ctx, device, queue_properties, &err );
+
 		if ( err != CL_SUCCESS ) {
 			printf ( "clCreateCommandQueue() failed with %d\n", err );
 			clReleaseContext ( _ctx );
@@ -191,7 +232,7 @@ class cl_ctx {
 			return 1;
 		}
 
-		const std::string color_message = "\x1b[33m[ workgroup_size = " + std::to_string ( local_work_size ) + " ]\x1b[0m";
+		const std::string color_message = "\x1b[33m[ workgroup_size = " + std::to_string ( local_work_size ) + " ]\x1b[0m\n";
 
 		std::cout << std::endl << color_message << std::endl;
 
@@ -234,22 +275,22 @@ class cl_ctx {
 		/* Finalize work with clblas. */
 		CL_BLAS_TEARDOWN();
 
-		for ( size_t i = 0; i < kernels1.matrices.size(); i++ )
-			clReleaseKernel ( kernels1.matrices[i] );
-		for ( size_t i = 0; i < kernels2.matrices.size(); i++ )
-			clReleaseKernel ( kernels2.matrices[i] );
-		for ( size_t i = 0; i < kernels3.matrices.size(); i++ )
-			clReleaseKernel ( kernels3.matrices[i] );
-		for ( size_t i = 0; i < kernels3_local.matrices.size(); i++ )
-			clReleaseKernel ( kernels3_local.matrices[i] );
-		for ( size_t i = 0; i < kernels4.matrices.size(); i++ )
-			clReleaseKernel ( kernels4.matrices[i] );
-		for ( size_t i = 0; i < kernels_mat_scalar.matrices.size(); i++ )
-			clReleaseKernel ( kernels_mat_scalar.matrices[i] );
-		for ( size_t i = 0; i < kernels_colwise.matrices.size(); i++ )
-			clReleaseKernel ( kernels_colwise.matrices[i] );
-		for ( size_t i = 0; i < kernels_rand.matrices.size(); i++ )
-			clReleaseKernel ( kernels_rand.matrices[i] );
+		for ( size_t i = 0; i < kernels1.entries.size(); i++ )
+			clReleaseKernel ( kernels1.entries[i] );
+		for ( size_t i = 0; i < kernels2.entries.size(); i++ )
+			clReleaseKernel ( kernels2.entries[i] );
+		for ( size_t i = 0; i < kernels3.entries.size(); i++ )
+			clReleaseKernel ( kernels3.entries[i] );
+		for ( size_t i = 0; i < kernels3_local.entries.size(); i++ )
+			clReleaseKernel ( kernels3_local.entries[i] );
+		for ( size_t i = 0; i < kernels4.entries.size(); i++ )
+			clReleaseKernel ( kernels4.entries[i] );
+		for ( size_t i = 0; i < kernels_mat_scalar.entries.size(); i++ )
+			clReleaseKernel ( kernels_mat_scalar.entries[i] );
+		for ( size_t i = 0; i < kernels_colwise.entries.size(); i++ )
+			clReleaseKernel ( kernels_colwise.entries[i] );
+		for ( size_t i = 0; i < kernels_rand.entries.size(); i++ )
+			clReleaseKernel ( kernels_rand.entries[i] );
 
 		clReleaseProgram ( program_elementwise );
 		clReleaseProgram ( program_rand );

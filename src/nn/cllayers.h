@@ -2,7 +2,7 @@
 * @Author: kmrocki@us.ibm.com
 * @Date:   2017-03-03 15:06:37
 * @Last Modified by:   kmrocki@us.ibm.com
-* @Last Modified time: 2017-04-27 21:09:51
+* @Last Modified time: 2017-04-28 13:57:54
 */
 
 #ifndef __CL_LAYERS_H__
@@ -87,7 +87,7 @@ class Linear : public CLLayer {
 
 	void applyGrads(float alpha) {
 
-		cl_elementwise(W, dW, alpha, "fmad", true);
+		cl_elementwise(W, dW, alpha, "fmad", false);
 
 	}
 
