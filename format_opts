@@ -1,0 +1,28 @@
+# this line is a comment
+--style=google      # this is a line-end comment
+--indent=force-tab
+# --attach-namespaces
+# --attach-classes
+# --attach-inlines
+# --attach-extern-c
+# --attach-closing-while
+# --indent-classes
+# --indent-modifiers
+# --indent-switches
+# --indent-cases
+# --indent-namespaces
+# --indent-after-parens
+# --indent-labels
+# --indent-preproc-block
+# --indent-preproc-define
+# --indent-preproc-cond
+# --indent-col1-comments
+# --break-blocks=all
+# --pad-oper
+# --pad-comma
+# --pad-paren-out
+# --pad-header
+# --delete-empty-lines
+# --align-pointer=type
+# --align-reference=type
+# --remove-comment-prefix
