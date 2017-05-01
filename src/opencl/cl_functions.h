@@ -22,12 +22,12 @@ void cl_matrix_randn (cl_matrix<float>& y, bool wait = false) {
 	/* Setup the kernel */
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["normal"], 0, sizeof (bufInNormal),  &bufInNormal) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["normal"], 1, sizeof (normalDist_buffer),  &normalDist_buffer) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["normal"], 2, sizeof (cl_mem), (void*) &y.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["normal"], 2, sizeof (cl_mem), (void*) &y.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["normal"], 3, sizeof (unsigned int), (void*) &n) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["normal"], 4, sizeof (unsigned int), (void*) &count) );
 
 	/* Execute the kernel and read back results */
-	std::string func_string = "cl_matrix_randn";
+	std::string func_string = "cl_matrix_randn_" + std::to_string(y.rows()) + "_" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -43,10 +43,10 @@ void cl_matrix_rand (cl_matrix<float>& y, bool wait = false) {
 
 	/* Setup the kernel */
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["uniform01"], 0, sizeof (bufInUniform),  &bufInUniform) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["uniform01"], 1, sizeof (cl_mem), (void*) &y.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["uniform01"], 1, sizeof (cl_mem), (void*) &y.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["uniform01"], 2, sizeof (unsigned int), (void*) &n) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["uniform01"], 3, sizeof (unsigned int), (void*) &count) );
-	std::string func_string = "cl_matrix_rand";
+	std::string func_string = "cl_matrix_rand_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -67,14 +67,14 @@ void cl_matrix_randi (cl_matrix<int>& y, int range_min = 0, int range_max = 99, 
 
 	/* Setup the kernel */
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["randi"], 0, sizeof (bufInUniform),  &bufInUniform) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["randi"], 1, sizeof (cl_mem), (void*) &y.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["randi"], 1, sizeof (cl_mem), (void*) &y.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["randi"], 2, sizeof (int), (void*) &r_min) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["randi"], 3, sizeof (int), (void*) &r_max) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["randi"], 4, sizeof (unsigned int), (void*) &n) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_rand["randi"], 5, sizeof (unsigned int), (void*) &count) );
 
 	/* Execute the kernel */
-	std::string func_string = "cl_matrix_randi";
+	std::string func_string = "cl_matrix_randi_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -88,14 +88,14 @@ void cl_gather_data (cl_matrix<float>& src, cl_matrix<float>& dst, const cl_matr
 	unsigned int count = dst.rows() * dst.cols();
 	unsigned int n = dst.rows();
 
-	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 0, sizeof (cl_mem), (void*) &src.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 1, sizeof (cl_mem), (void*) &dst.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 2, sizeof (cl_mem), (void*) &idxs.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 0, sizeof (cl_mem), (void*) &src.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 1, sizeof (cl_mem), (void*) &dst.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 2, sizeof (cl_mem), (void*) &idxs.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 3, sizeof (unsigned int), (void*) &n) );
 	CL_SAFE_CALL (clSetKernelArg (dst.matrix_ctx->kernels4["gather_data"], 4, sizeof (unsigned int), (void*) &count) );
 
 	size_t global_work_size = ( (count / dst.matrix_ctx->local_work_size) + 1) * dst.matrix_ctx->local_work_size;
-	std::string func_string = "cl_gather_data";
+	std::string func_string = "cl_gather_data_" + std::to_string(count) + "_" + std::to_string(dst.rows()) + "x" + std::to_string(dst.cols());
 
 	if (dst.matrix_ctx->profiling_enabled) clFinish (dst.matrix_ctx->queue() );
 
@@ -110,11 +110,11 @@ void cl_elementwise (cl_matrix<float>& y, std::string func, bool wait = false) {
 
 	unsigned int count = y.rows() * y.cols();
 
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels1[func], 0, sizeof (cl_mem), (void*) &y.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels1[func], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels1[func], 1, sizeof (unsigned int), (void*) &count) );
 
 	size_t global_work_size = ( (count / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
-	std::string func_string = "cl_elementwise_1_" + func;
+	std::string func_string = "cl_elementwise_1_" + func + "_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -133,12 +133,12 @@ void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, std::string func,
 
 	unsigned int count = y.rows() * y.cols();
 
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 0, sizeof (cl_mem), (void*) &y.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 1, sizeof (cl_mem), (void*) &x.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 1, sizeof (cl_mem), (void*) &x.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 2, sizeof (unsigned int), (void*) &count) );
 
 	size_t global_work_size = ( (count / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
-	std::string func_string = "cl_elementwise_2_" + func;
+	std::string func_string = "cl_elementwise_2_" + func + "_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -156,13 +156,13 @@ void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, std::string func,
 void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, cl_matrix<float>& z, std::string func, bool wait = false) {
 
 	unsigned int count = y.rows() * y.cols();
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 0, sizeof (cl_mem), (void*) &y.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 1, sizeof (cl_mem), (void*) &x.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 2, sizeof (cl_mem), (void*) &z.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 1, sizeof (cl_mem), (void*) &x.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 2, sizeof (cl_mem), (void*) &z.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 3, sizeof (unsigned int), (void*) &count) );
 
 	size_t global_work_size = ( (count / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
-	std::string func_string = "cl_elementwise_3_" + func;
+	std::string func_string = "cl_elementwise_3_" + func + "_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -178,12 +178,12 @@ void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, float z, std::str
 	unsigned int count = y.rows() * y.cols();
 	float local_z = z;
 
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 0, sizeof (cl_mem), (void*) &y.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 1, sizeof (cl_mem), (void*) &x.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 1, sizeof (cl_mem), (void*) &x.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 2, sizeof (cl_float), (void*) &local_z) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels3[func], 3, sizeof (unsigned int), (void*) &count) );
 	size_t global_work_size = ( (count / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
-	std::string func_string = "cl_elementwise_3s_" + func;
+	std::string func_string = "cl_elementwise_3s_" + func + "_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -203,13 +203,13 @@ void cl_matrix_scalar (cl_matrix<float>& y, std::string func, bool wait = false)
 
 	unsigned int count = y.rows() * y.cols();
 
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_mat_scalar[func], 0, sizeof (cl_mem), (void*) &y.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_mat_scalar[func], 1, sizeof (cl_mem), (void*) &y.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_mat_scalar[func], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_mat_scalar[func], 1, sizeof (cl_mem), (void*) &y.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_mat_scalar[func], 2, sizeof (unsigned int), (void*) &y.indexMax) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels_mat_scalar[func], 3, sizeof (unsigned int), (void*) &count) );
 
 	size_t global_work_size = ( (count / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
-	std::string func_string = "cl_elementwise_1s_" + func;
+	std::string func_string = "cl_elementwise_1s_" + func + "_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -219,6 +219,53 @@ void cl_matrix_scalar (cl_matrix<float>& y, std::string func, bool wait = false)
 	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled) y.matrix_ctx->get_profiling_data (func_string);
 }
 
+int cl_sum(cl_matrix<float>& m, bool wait = false, bool read_to_hostmem = false) {
+
+	size_t N = m.rows() * m.cols();
+
+	if (m.lenScratchBuf < N) {
+		m.lenScratchBuf = N;
+
+		if (m.scratchBuf) clReleaseMemObject ( (cl_mem) m.scratchBuf);
+
+		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), CL_MEM_READ_WRITE, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
+
+		if (m.matrix_ctx->err != CL_SUCCESS) {
+			printf ("cl_max_coeff : m.scratchBuf = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
+			return 1;
+		}
+	}
+
+	if (!m.d_sum) m.d_sum = clCreateBuffer (m.matrix_ctx->ctx(), CL_MEM_READ_WRITE, sizeof (cl_float), NULL, &m.matrix_ctx->err);
+
+	if (m.matrix_ctx->err != CL_SUCCESS) {
+		printf ("cl_sum : m.d_sum = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
+		return 1;
+	}
+
+	// _CL_TIMED_CALL_
+	std::string func_string = "clblas_sasum_" + std::to_string(N) + "_" + std::to_string(m.rows()) + "x" + std::to_string(m.cols());
+
+	if (m.matrix_ctx->profiling_enabled) clFinish (m.matrix_ctx->queue() );
+
+	CL_BLAS_STATUS_TYPE status = CL_BLAS_SASUM (N, m.d_sum, 0, m.ref_device_data, 0, 1, m.scratchBuf, 1, &m.matrix_ctx->queue(), 0, NULL, &m.matrix_ctx->cl_events[func_string]);
+
+	if (status != CL_BLAS_SUCCESS_CODE) {
+		printf ("clblas_sasum() failed with %d - %s\n", status, oclErrorString (status) );
+		return 1;
+
+	} else {
+		/* Wait for calculations to be finished. */
+		if ( (!m.matrix_ctx->asynchronous || wait) || m.matrix_ctx->profiling_enabled) m.matrix_ctx->get_profiling_data (func_string);
+
+		/* Fetch results of calculations from GPU memory. */
+		if (read_to_hostmem) {
+			CL_SAFE_CALL (clEnqueueReadBuffer (m.matrix_ctx->queue(), m.d_sum, CL_TRUE, 0, sizeof (cl_float), &m.h_sum, 0, NULL, NULL) );
+		}
+	}
+
+	return 0;
+}
 int cl_max_coeff (cl_matrix<float>& m, bool wait = false, bool read_to_hostmem = false) {
 	size_t N = m.rows() * m.cols();
 
@@ -243,11 +290,11 @@ int cl_max_coeff (cl_matrix<float>& m, bool wait = false, bool read_to_hostmem =
 	}
 
 	// _CL_TIMED_CALL_
-	std::string func_string = "clblas_isamax";
+	std::string func_string = "clblas_isamax_" + std::to_string(N) + "_" + std::to_string(m.rows()) + "x" + std::to_string(m.cols());
 
 	if (m.matrix_ctx->profiling_enabled) clFinish (m.matrix_ctx->queue() );
 
-	CL_BLAS_STATUS_TYPE status = CL_BLAS_ISAMAX (N, m.iMax, 0, m.device_data, 0, 1, m.scratchBuf, 1, &m.matrix_ctx->queue(), 0, NULL, &m.matrix_ctx->cl_events[func_string]);
+	CL_BLAS_STATUS_TYPE status = CL_BLAS_ISAMAX (N, m.iMax, 0, m.ref_device_data, 0, 1, m.scratchBuf, 1, &m.matrix_ctx->queue(), 0, NULL, &m.matrix_ctx->cl_events[func_string]);
 
 	if (status != CL_BLAS_SUCCESS_CODE) {
 		printf ("clblasiSamax() failed with %d - %s\n", status, oclErrorString (status) );
@@ -277,13 +324,13 @@ void cl_colsumdiv (cl_matrix<float>& y, cl_matrix<float>& x, bool wait = false) 
 	unsigned int count = x.rows() * x.cols();
 	unsigned int cols = y.cols();
 
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 0, sizeof (cl_mem), (void*) &y.device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 1, sizeof (cl_mem), (void*) &x.device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 1, sizeof (cl_mem), (void*) &x.ref_device_data) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 2, sizeof (unsigned int), (void*) &count) );
 	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 3, sizeof (unsigned int), (void*) &cols) );
 
 	size_t global_work_size = ( (cols / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
-	std::string func_string = "cl_colsumdiv";
+	std::string func_string = "cl_colsumdiv_" + std::to_string(count) + "_" + std::to_string(x.rows()) + "x" + std::to_string(x.cols());
 
 	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
 
@@ -299,7 +346,7 @@ cl_matrix<float> ones_column;
 void cl_softmax (cl_matrix<float>& y, cl_matrix<float>& x, bool wait = false) {
 	cl_elementwise (y, x, "exp", wait);
 
-	if (!colsums.device_data) {
+	if (!colsums.ref_device_data) {
 		colsums = cl_matrix<float> (y.matrix_ctx, {1, y.cols() });
 	}
 
@@ -322,12 +369,12 @@ int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& 
 	size_t offset_b = 0;
 	size_t offset_c = 0;
 	CL_BLAS_STATUS_TYPE status;
-	std::string func_string = "cl_matrix_mult";
+	std::string func_string = "cl_matrix_mult_M_" + std::to_string(M) + "_N_" + std::to_string(N) + "_K_" + std::to_string(K) + "_aT_" + std::to_string(tA) + "_bT_" + std::to_string(tB);
 
 	if (c.matrix_ctx->profiling_enabled) clFinish (c.matrix_ctx->queue() );
 
 	/* Execute the kernel */
-	status = CL_BLAS_SGEMM (order, transA, transB, M, N, K, alpha, (cl_mem) a.device_data, offset_a, lda, (cl_mem) b.device_data, offset_b, ldb, beta, (cl_mem) c.device_data, offset_c, ldc, 1, &c.matrix_ctx->queue(), 0, NULL, &c.matrix_ctx->cl_events[func_string]);
+	status = CL_BLAS_SGEMM (order, transA, transB, M, N, K, alpha, (cl_mem) a.ref_device_data, offset_a, lda, (cl_mem) b.ref_device_data, offset_b, ldb, beta, (cl_mem) c.ref_device_data, offset_c, ldc, 1, &c.matrix_ctx->queue(), 0, NULL, &c.matrix_ctx->cl_events[func_string]);
 
 	if (status != CL_BLAS_SUCCESS_CODE) {
 		printf ("clblasSgemm() failed with %d - %s\n", status, oclErrorString (status) );
@@ -342,4 +389,5 @@ int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& 
 		return 0;
 	}
 }
+
 #endif

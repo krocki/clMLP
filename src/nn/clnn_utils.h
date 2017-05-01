@@ -27,6 +27,14 @@ float cross_entropy_host (Eigen::MatrixXf& error, Eigen::MatrixXf& logprobs, Eig
 	return ce;
 }
 
+float cross_entropy (cl_matrix<float>& error, cl_matrix<float>& logprobs, cl_matrix<float>& predictions, cl_matrix<float>& targets) {
+
+	UNUSED(logprobs);
+
+	cl_elementwise (error, predictions, targets, "cross_entropy");
+	return error.sum();
+}
+
 //generate an array of random numbers in range
 void matrix_randi_host (Eigen::MatrixXi& m, int range_min, int range_max) {
 	std::random_device rd;

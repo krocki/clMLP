@@ -68,9 +68,9 @@ class MNISTImporter {
 			}
 
 			printf ("\nSync datapoints to device...\n");
-			d.x.sync_device();
-			d.yi.sync_device();
-			d.y1.sync_device();
+			_TIMED_CALL_ (d.x.sync_device());
+			_TIMED_CALL_ (d.yi.sync_device());
+			_TIMED_CALL_ (d.y1.sync_device());
 			printf ("Finished.\n");
 			infile.close();
 			labels_file.close();

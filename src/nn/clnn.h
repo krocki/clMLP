@@ -33,12 +33,12 @@ class CLNN {
 
 	void forward (cl_matrix<float>& input_data) {
 		//copy inputs ptr to the lowest point in the network
-		layers[0]->x.device_data = input_data.device_data;
+		layers[0]->x.ref_device_data = input_data.device_data;
 
 		//compute forward activations
 		for (size_t i = 0; i < layers.size(); i++) {
 			//link inputs-outputs
-			if (i > 0) layers[i]->x.device_data = layers[i - 1]->y.device_data;
+			if (i > 0) layers[i]->x.ref_device_data = layers[i - 1]->y.device_data;
 
 			layers[i]->forward();
 		}
@@ -56,16 +56,16 @@ class CLNN {
 
 	void backward (cl_matrix<float>& t) {
 		//set targets ptr at the top
-		_TIMED_CALL_ (layers.back()->dy.device_data = t.device_data);
+		layers.back()->dy.ref_device_data = t.device_data;
 
 		//propagate error backward
 		for (int i = layers.size() - 1; i >= 0; i--) {
-			_TIMED_CALL_ (layers[i]->resetGrads() );
-			_TIMED_CALL_ (layers[i]->backward() );
+			layers[i]->resetGrads();
+			layers[i]->backward();
 
 			//dy(previous layer) = dx(current layer)
 			if (i > 0)
-				_TIMED_CALL_ (layers[i - 1]->dy.device_data = layers[i]->dx.device_data);
+				layers[i - 1]->dy.ref_device_data = layers[i]->dx.device_data;
 		}
 	}
 
@@ -76,33 +76,36 @@ class CLNN {
 	}
 
 	void train (datapoints& data, float alpha, size_t iterations, bool show_loss = false) {
+
 		for (size_t ii = 0; ii < iterations; ii++) {
+
 			// generate numbers {0, . . . , data.x.cols() - 1}
 			//TODO: batch is always the same, because rands_int are always the same
-			_TIMED_CALL_ (cl_matrix_randi (rands_int, 0, data.x.cols() - 1, false) );
+			cl_matrix_randi (rands_int, 0, data.x.cols() - 1, false);
 			//rands_int.sync_host();
 			//std::cout << "int rands" << std::endl;
 			//std::cout << rands_int.ref_host_data << std::endl;
 			// make batch
-			_TIMED_CALL_ (cl_gather_data (data.x, batch, rands_int) );
-			_TIMED_CALL_ (forward (batch) );
+			cl_gather_data (data.x, batch, rands_int);
+			forward (batch);
 			// make batch labels
-			_TIMED_CALL_ (cl_gather_data (data.y1, targets, rands_int) );
+			cl_gather_data (data.y1, targets, rands_int);
 
 			if (show_loss) {
-				_TIMED_CALL_ (layers.back()->y.sync_host() );
-				_TIMED_CALL_ (targets.sync_host() );
+
+				layers.back()->y.sync_host();
+				targets.sync_host();
 				double loss;
-				loss = cross_entropy_host (errors.ref_host_data, logprobs.ref_host_data, layers.back()->y.ref_host_data, targets.ref_host_data);
+				loss = cross_entropy (errors, logprobs, layers.back()->y, targets);
 				smooth_loss = isNaNInf (loss) ? smooth_loss : (smooth_loss > 0 ? smooth_loss * 0.99f + loss * 0.01f : loss);
 
 				if (ii % 100 == 99) std::cout << "[" << ii + 1 << "/" << iterations << "] Loss = " << smooth_loss << std::endl;
 			}
 
 			//backprogagation
-			_TIMED_CALL_ (backward (targets) );
+			backward (targets);
 			//apply changes
-			_TIMED_CALL_ (update (alpha) );
+			update (alpha);
 		}
 	}
 

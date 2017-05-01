@@ -32,12 +32,17 @@ class cl_matrix {
   public:
 
 	cl_mem device_data;
+	cl_mem& ref_device_data;
 
 	//temp buffers
 	cl_mem scratchBuf;
 
 	cl_mem iMax; // index of max value (updated through cl_max_coeff(cl_matrix& m)) - device mem
 	cl_uint indexMax = 0; // index of max value (updated through cl_max_coeff(cl_matrix& m))
+
+	cl_mem d_sum; // sum of elements
+	T h_sum; // host copy of the sum
+
 	unsigned int lenScratchBuf = 0;
 
 	host_matrix<T> host_data;
@@ -45,7 +50,7 @@ class cl_matrix {
 
 	cl_ctx* matrix_ctx;
 
-	cl_matrix (cl_ctx* ctx = nullptr) : ref_host_data (host_data), matrix_ctx (ctx) {
+	cl_matrix (cl_ctx* ctx = nullptr) : ref_device_data (device_data), ref_host_data (host_data), matrix_ctx (ctx) {
 		device_data = nullptr;
 		scratchBuf = nullptr;
 		iMax = nullptr;
@@ -56,6 +61,7 @@ class cl_matrix {
 		host_data.setZero();
 		ref_host_data = host_data;
 		alloc_device_mem();
+
 	};
 
 	cl_matrix (cl_ctx* ctx, host_matrix<T>& m) : cl_matrix (ctx) {
@@ -78,6 +84,8 @@ class cl_matrix {
 		free_device_mem();
 		alloc_device_mem();
 	}
+
+	T sum() { cl_sum(*this, false, true); return h_sum; }
 
 	size_t rows() const {
 		return ref_host_data.rows();
@@ -129,6 +137,7 @@ class cl_matrix {
 
 	void alloc_device_mem() {
 		cl_alloc_from_matrix (matrix_ctx, device_data, ref_host_data, CL_MEM_READ_WRITE);
+		ref_device_data = device_data;
 	}
 
 	void free_device_mem() {
@@ -223,6 +232,9 @@ int cl_copy_matrix_to_host (cl_ctx* ctx, host_matrix<T>& dst, cl_mem device_data
 
 	size_t bytes = dst.rows() * dst.cols() * sizeof (T);
 	CL_SAFE_CALL (clEnqueueReadBuffer (ctx->queue(), device_data, CL_TRUE, 0, bytes, dst.data(), 0, NULL, NULL) );
+
+	if (ctx->profiling_enabled) clFinish (ctx->queue() );
+
 	return 0;
 }
 

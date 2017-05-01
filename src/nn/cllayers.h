@@ -49,12 +49,12 @@ class Linear : public CLLayer {
 	cl_matrix<float> W, dW;
 
 	void forward() {
-		_TIMED_CALL_ (cl_matrix_mult (y, W, x, false, false, 1.0f, 0.0f) );
+		cl_matrix_mult (y, W, x, false, false, 1.0f, 0.0f);
 	}
 
 	void backward() {
-		_TIMED_CALL_ (cl_matrix_mult (dW, dy, x, false, true, 1.0f, 0.0f) );
-		_TIMED_CALL_ (cl_matrix_mult (dx, W, dy, true, false, 1.0f, 0.0f) );
+		cl_matrix_mult (dW, dy, x, false, true, 1.0f, 0.0f);
+		cl_matrix_mult (dx, W, dy, true, false, 1.0f, 0.0f);
 	}
 
 	Linear (cl_ctx* cl_env, size_t inputs, size_t outputs, size_t batch_size) : CLLayer (cl_env, inputs, outputs, batch_size) {
@@ -62,19 +62,19 @@ class Linear : public CLLayer {
 		dW = cl_matrix<float> (W);
 		matrix_randn_host (W.ref_host_data, 0, (1.0f) / sqrtf (W.ref_host_data.rows() + W.ref_host_data.cols() ) );
 		// cl_elementwise(W, "randn", true);
-		_TIMED_CALL_ (W.sync_device() );
+		W.sync_device();
 	};
 
 	virtual void sync_device() {
-		_TIMED_CALL_ (W.sync_device() );
+		W.sync_device();
 	};
 
 	virtual void sync_host() {
-		_TIMED_CALL_ (W.sync_host() );
+		W.sync_host();
 	};
 
 	void applyGrads (float alpha) {
-		_TIMED_CALL_ (cl_elementwise (W, dW, alpha, "fmad_lmem") );
+		cl_elementwise (W, dW, alpha, "fmad_lmem");
 	}
 
 	~Linear() {};
@@ -86,11 +86,11 @@ class Sigmoid : public CLLayer {
   public:
 
 	void forward() {
-		_TIMED_CALL_ (cl_elementwise (y, x, "logistic") );
+		cl_elementwise (y, x, "logistic");
 	}
 
 	void backward() {
-		_TIMED_CALL_ (cl_elementwise (dx, dy, y, "dlogistic") );
+		cl_elementwise (dx, dy, y, "dlogistic");
 	}
 
 	Sigmoid (cl_ctx* cl_env, size_t inputs, size_t outputs, size_t batch_size) : CLLayer (cl_env, inputs, outputs, batch_size) {};
@@ -103,11 +103,11 @@ class ReLU : public CLLayer {
   public:
 
 	void forward() {
-		_TIMED_CALL_ (cl_elementwise (y, x, "relu") );
+		cl_elementwise (y, x, "relu");
 	}
 
 	void backward() {
-		_TIMED_CALL_ (cl_elementwise (dx, dy, y, "drelu") );
+		cl_elementwise (dx, dy, y, "drelu");
 	}
 
 	ReLU (cl_ctx* cl_env, size_t inputs, size_t outputs, size_t batch_size) : CLLayer (cl_env, inputs, outputs, batch_size) {};
@@ -120,12 +120,12 @@ class Softmax : public CLLayer {
   public:
 
 	void forward() {
-		_TIMED_CALL_ (cl_sub_max_coeff (x) );
-		_TIMED_CALL_ (cl_softmax (y, x) );
+		cl_sub_max_coeff (x);
+		cl_softmax (y, x);
 	}
 
 	void backward() {
-		_TIMED_CALL_ (cl_elementwise (dx, dy, y, "dsoftmax") );
+		cl_elementwise (dx, dy, y, "dsoftmax");
 	}
 
 

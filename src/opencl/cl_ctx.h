@@ -28,7 +28,7 @@ class cl_ctx {
   private:
 
 	cl_platform_id platform = 0;
-	cl_device_id device = 0;
+
 	// cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
 	cl_context _ctx = 0;
 	cl_command_queue _queue = 0;
@@ -38,6 +38,9 @@ class cl_ctx {
 	std::vector <deviceInfo> availableDevices;
 
   public:
+
+	cl_device_id device = 0;
+	cl_dev_info dev_properties;
 
 	bool asynchronous = true;
 	bool profiling_enabled = true;
@@ -60,6 +63,7 @@ class cl_ctx {
 
 	// from rand.cl
 	Dict<cl_kernel> kernels_rand;
+
 	Dict<prof_data>& pdata;
 
 	bool get_workgroup_size_from_device = false;
@@ -68,11 +72,19 @@ class cl_ctx {
 	cl_ctx (bool enable_profiling, Dict<prof_data>& _pdata) : profiling_enabled (enable_profiling), pdata (_pdata) { }
 
 	void get_profiling_data (std::string key) {
+
 		clWaitForEvents (1, &cl_events[key]);
+		clFinish(_queue);
 
 		if (profiling_enabled) {
 			cl_ulong time_start, time_end;
 			double total_time;
+
+			//- CL_PROFILING_COMMAND_QUEUED
+			//- CL_PROFILING_COMMAND_SUBMIT
+			//- CL_PROFILING_COMMAND_START
+			//- CL_PROFILING_COMMAND_END
+
 			clGetEventProfilingInfo (cl_events[key], CL_PROFILING_COMMAND_START, sizeof (time_start), &time_start, NULL);
 			clGetEventProfilingInfo (cl_events[key], CL_PROFILING_COMMAND_END, sizeof (time_end), &time_end, NULL);
 			total_time = time_end - time_start;
@@ -89,9 +101,7 @@ class cl_ctx {
 		availableDevices.insert (availableDevices.end(), clDevices.begin(), clDevices.end() );
 
 		for (unsigned int i = 0; i < availableDevices.size(); i++) {
-			printf ("[%2d]: %s [%s, local id = %ld]\n", i,
-			        availableDevices[i].name.c_str(), availableDevices[i].type.c_str(),
-			        availableDevices[i].localNum);
+			printf ("[%2d]: %s [%s, local id = %ld]\n", i, availableDevices[i].name.c_str(), availableDevices[i].type.c_str(), availableDevices[i].localNum);
 		}
 
 		int requestedDevice = requested_device;
@@ -107,10 +117,10 @@ class cl_ctx {
 		/* Setup OpenCL environment. */
 		CL_SAFE_CALL (clGetPlatformIDs (1, &platform, NULL) );
 		device = (cl_device_id) availableDevices[selectedDevice].localNum;
-		cl_dev_info dev_properties = clUtils::getDevice (device);
+		dev_properties = clUtils::getDevice (device);
 		printf ("device_string: %s\n", dev_properties.device_string.c_str() );
 		printf ("compute_units: %u\n", dev_properties.compute_units);
-		printf ("workgroup_size: %u\n", dev_properties.workgroup_size);
+		printf ("workgroup_size: %zu\n", dev_properties.workgroup_size);
 		printf ("global_mem_size: %llu\n", (long long unsigned int) dev_properties.global_mem_size);
 		printf ("local_mem_size: %llu\n", (long long unsigned int) dev_properties.local_mem_size);
 		printf ("preferred_vector: %u\n", dev_properties.preferred_vector);
@@ -132,7 +142,8 @@ class cl_ctx {
 		if (profiling_enabled) queue_properties |= CL_QUEUE_PROFILING_ENABLE;
 		if (ooo_exec_enabled) queue_properties |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
 
-		const std::string queue_color_message = "\x1b[33m[ cpu profiling_enabled = " + std::to_string (CPU_PROF_ENABLED) + " ]\x1b[0m\n" + "\x1b[33m[ cl profiling_enabled = " + std::to_string (CL_PROF_ENABLED) + " ]\x1b[0m\n" + "\x1b[33m[ ooo_exec_enabled = " + std::to_string (ooo_exec_enabled) + " ]\x1b[0m\n";
+		const std::string queue_color_message = "\x1b[33m[ cpu profiling_enabled = " + std::to_string (CPU_PROF_ENABLED) + " ]\x1b[0m\n" + "\x1b[33m[ cl profiling_enabled = " + std::to_string (CL_PROF_ENABLED) + " ]\x1b[0m\n" + "\x1b[33m[ ooo_exec_enabled = " + std::to_string (ooo_exec_enabled) + " ]\x1b[0m\n" + "\x1b[33m[ cl profiling_timer_resolution: " + std::to_string (dev_properties.profiling_timer_resolution) + " ns ]\x1b[0m\n";
+
 
 		std::cout << std::endl << queue_color_message << std::endl;
 		_queue = clCreateCommandQueue (_ctx, device, queue_properties, &err);
@@ -169,6 +180,7 @@ class cl_ctx {
 			return 1;
 		}
 
+
 		kernels1["logistic"] = clCreateKernel (program_elementwise, "logistic1", &err);
 		kernels1["relu"] = clCreateKernel (program_elementwise, "rectify1", &err);
 		kernels1["exp"] = clCreateKernel (program_elementwise, "expf1", &err);
@@ -182,6 +194,7 @@ class cl_ctx {
 		kernels3["dlogistic"] = clCreateKernel (program_elementwise, "dlogistic", &err);
 		kernels3["dsoftmax"] = clCreateKernel (program_elementwise, "dsoftmax", &err);
 		kernels3["fmad"] = clCreateKernel (program_elementwise, "fmad", &err);
+		kernels3["cross_entropy"] = clCreateKernel (program_elementwise, "cross_entropy", &err);
 		kernels3["fmad_lmem"] = clCreateKernel (program_elementwise, "fmad_lmem", &err);
 		kernels4["gather_data"] = clCreateKernel (program_elementwise, "gather_data", &err);
 		kernels_mat_scalar["sub"] = clCreateKernel (program_elementwise, "sub1", &err);
@@ -251,6 +264,7 @@ class cl_ctx {
 
 		clReleaseProgram (program_elementwise);
 		clReleaseProgram (program_rand);
+
 		/* Release OpenCL working objects. */
 		clReleaseCommandQueue (_queue);
 		clReleaseContext (_ctx);

@@ -124,3 +124,10 @@ __kernel void gather_data (__global float* in, __global float* out, __global int
 	if (i < count) out[i] = in[src_idx + l];
 }
 
+__kernel void cross_entropy (__global float* logprobs, __global float* pred, __global float* targets, const unsigned int count) {
+
+	int i = get_global_id (0);
+	if (i < count)
+		logprobs[i] = - log(pred[i]) * targets[i];
+
+}

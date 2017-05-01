@@ -117,6 +117,7 @@ std::vector <deviceInfo> clUtils::listDevices (cl_device_type dev_type) {
 }
 
 cl_dev_info clUtils::getDevice (cl_device_id device) {
+
 	cl_dev_info     found_device;
 	char            device_string[BUFFER_STRING_LENGTH];
 	cl_uint         compute_units;
@@ -124,12 +125,15 @@ cl_dev_info clUtils::getDevice (cl_device_id device) {
 	cl_ulong        global_mem_size;
 	cl_ulong        local_mem_size;
 	cl_uint         preferred_vector;
-	CL_SAFE_CALL (clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof (device_string), &device_string, NULL) );
-	CL_SAFE_CALL (clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof (compute_units), &compute_units, NULL) );
-	CL_SAFE_CALL (clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof (workgroup_size), &workgroup_size, NULL) );
+	size_t			profiling_timer_resolution;
+
+	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_NAME, sizeof (device_string), &device_string, NULL) );
+	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof (compute_units), &compute_units, NULL) );
+	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof (workgroup_size), &workgroup_size, NULL) );
 	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof (global_mem_size), &global_mem_size, NULL) );
 	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof (local_mem_size), &local_mem_size, NULL) );
 	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT, sizeof (cl_uint), &preferred_vector, NULL) );
+	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_PROFILING_TIMER_RESOLUTION, sizeof(size_t), &profiling_timer_resolution, NULL) );
 
 	std::string temp = std::string (device_string);
 	found_device.device_string = delUnnecessary (temp);
@@ -138,6 +142,11 @@ cl_dev_info clUtils::getDevice (cl_device_id device) {
 	found_device.global_mem_size = global_mem_size;
 	found_device.local_mem_size = local_mem_size;
 	found_device.preferred_vector = preferred_vector;
+	found_device.profiling_timer_resolution = profiling_timer_resolution;
+
+	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof (found_device.workitem_dims), &found_device.workitem_dims, NULL) );
+	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof (found_device.workitem_size), &found_device.workitem_size, NULL) );
+	CL_SAFE_CALL (clGetDeviceInfo (device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof (found_device.workgroup_size), &found_device.workgroup_size, NULL) );
 
 	return found_device;
 }

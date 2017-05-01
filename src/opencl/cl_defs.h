@@ -97,11 +97,13 @@ typedef struct {
 	std::string     device_string;
 	std::string     platform_string;
 	cl_uint         compute_units;
-	unsigned        workgroup_size;
 	cl_ulong        global_mem_size;
 	cl_ulong        local_mem_size;
 	cl_uint         preferred_vector;
-	long : 32;      // padding
+	size_t 			profiling_timer_resolution;
+	size_t          workitem_dims;
+	size_t          workitem_size[3];
+	size_t 			workgroup_size;
 
 } cl_dev_info;
 
@@ -118,4 +120,97 @@ typedef struct {
 
 } deviceInfo;
 
+/**
+ * KernelWorkGroupInfo
+ * class implements the functionality to query
+ * various Kernel Work Group related parameters
+ */
+
+class KernelWorkGroupInfo {
+  public:
+	cl_ulong localMemoryUsed;           /**< localMemoryUsed amount of local memory used by kernel */
+	size_t kernelWorkGroupSize;         /**< kernelWorkGroupSize Supported WorkGroup size as per OpenCL Runtime*/
+	size_t compileWorkGroupSize[3];     /**< compileWorkGroupSize WorkGroup size as mentioned in kernel source */
+
+	/**
+	 * Constructor
+	 */
+	KernelWorkGroupInfo():
+		localMemoryUsed(0),
+		kernelWorkGroupSize(0) {
+		compileWorkGroupSize[0] = 0;
+		compileWorkGroupSize[1] = 0;
+		compileWorkGroupSize[2] = 0;
+	}
+
+	/**
+	 * setKernelWorkGroupInfo
+	 * Set all information for a given device id
+	 * @param kernel kernel object
+	 * @param deviceId deviceID of the kernel object
+	 * @return 0 if success else nonzero
+	 */
+	int setKernelWorkGroupInfo(cl_kernel& kernel, cl_device_id& deviceId) {
+		cl_int status = CL_SUCCESS;
+		//Get Kernel Work Group Info
+		status = clGetKernelWorkGroupInfo(kernel,
+		                                  deviceId,
+		                                  CL_KERNEL_WORK_GROUP_SIZE,
+		                                  sizeof(size_t),
+		                                  &kernelWorkGroupSize,
+		                                  NULL);
+		if (checkVal(status, CL_SUCCESS,
+		             "clGetKernelWorkGroupInfo failed(CL_KERNEL_WORK_GROUP_SIZE)")) {
+			return 1;
+		}
+		status = clGetKernelWorkGroupInfo(kernel,
+		                                  deviceId,
+		                                  CL_KERNEL_LOCAL_MEM_SIZE,
+		                                  sizeof(cl_ulong),
+		                                  &localMemoryUsed,
+		                                  NULL);
+		if (checkVal(status, CL_SUCCESS,
+		             "clGetKernelWorkGroupInfo failed(CL_KERNEL_LOCAL_MEM_SIZE)")) {
+			return 1;
+		}
+		status = clGetKernelWorkGroupInfo(kernel,
+		                                  deviceId,
+		                                  CL_KERNEL_COMPILE_WORK_GROUP_SIZE,
+		                                  sizeof(size_t) * 3,
+		                                  compileWorkGroupSize,
+		                                  NULL);
+		if (checkVal(status, CL_SUCCESS,
+		             "clGetKernelWorkGroupInfo failed(CL_KERNEL_COMPILE_WORK_GROUP_SIZE)")) {
+			return 1;
+		}
+		return 0;
+	}
+  private :
+
+	/**
+	 * checkVal
+	 * Templated FunctionCheck whether any error occured
+	 * @param input templated input
+	 * @param reference templated input
+	 * @param message string message
+	 * @param isAPIerror bool optional variable
+	 * @return 0 if success, else nonzero
+	 */
+	template<typename T>
+	int checkVal(T input, T reference, std::string message,
+	             bool isAPIerror = true) const {
+		if (input == reference) {
+			return 0;
+		} else {
+			if (isAPIerror) {
+				std::cout << "Error: " << message << " Error code : ";
+				std::cout << "getOpenCLErrorCodeStr(input)" << std::endl;
+			} else {
+				std::cout << message;
+			}
+			return 1;
+		}
+	}
+
+};
 #endif

@@ -12,22 +12,26 @@
 #include <utils.h>
 #include <containers/dict.h>
 
-
 typedef enum profiling_type {OFF = 0, CPU_ONLY = 1, GPU_ONLY = 2, CPU_GPU = 3} profiling_type;
 
 profiling_type prof_enabled;
 
 #define CL_PROF_ENABLED (((prof_enabled == GPU_ONLY) || (prof_enabled == CPU_GPU)) ? true : false)
 #define CPU_PROF_ENABLED (((prof_enabled == CPU_ONLY) || (prof_enabled == CPU_GPU)) ? true : false)
+#define GPU_BLOCKS_CPU 0
+
+cl_command_queue defqueue;
 
 // using this for profiling
 #define _TIMED_CALL_(func)  \
 	do { \
 		std::chrono::time_point<std::chrono::system_clock> func_start, func_end; \
+		if (GPU_BLOCKS_CPU) clFinish (defqueue); \
 		if (CPU_PROF_ENABLED) { \
 			func_start = std::chrono::system_clock::now(); \
 		} \
 		func; \
+		if (GPU_BLOCKS_CPU) clFinish (defqueue); \
 		if (CPU_PROF_ENABLED) { \
 			func_end = std::chrono::system_clock::now(); \
 			double func_time = ( double ) std::chrono::duration_cast<std::chrono::nanoseconds> ( func_end - func_start ).count(); \
@@ -149,7 +153,7 @@ void show_profiling_data (Dict<prof_data>& pdata, sort_method_type sort_method =
 	//second pass
 	for (size_t i = 0; i < pdata.entries.size(); i ++) {
 		if (ptype != OFF) {
-			std::cout << std::setw (80) << pdata.reverse_namemap[ sorted_idxs[i] ];
+			std::cout << std::setw (50) << pdata.reverse_namemap[ sorted_idxs[i] ];
 			pdata.entries[ sorted_idxs[i] ].show (difference, total_cl_time, total_cl_flops_performed, total_bytes_in, total_bytes_out);
 		}
 

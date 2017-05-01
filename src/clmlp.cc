@@ -43,27 +43,33 @@ void nntest (int device, cl_device_type dev_type) {
 	start = std::chrono::system_clock::now();
 	bool enable_cl_profiling = ( (prof_enabled == GPU_ONLY) || (prof_enabled == CPU_GPU) ) ? true : false;
 	cl_ctx ocl (enable_cl_profiling, pdata);
+	defqueue = ocl.queue();
 
 	if (ocl.init (device, dev_type) != 0) printf ("opencl init failed!\n");
 
 	CLNN nn (ocl, batch_size, 28 * 28, 10);
 
 	// ~98.1% after 60 epochs
-	nn.layers.push_back (new Linear (&ocl, 28 * 28, 256, batch_size) );
+	nn.layers.push_back (new Linear (&ocl, 28 * 28, 400, batch_size) );
+	nn.layers.push_back (new ReLU (&ocl, 400, 400, batch_size) );
+	nn.layers.push_back (new Linear (&ocl, 400, 256, batch_size) );
 	nn.layers.push_back (new ReLU (&ocl, 256, 256, batch_size) );
-	nn.layers.push_back (new Linear (&ocl, 256, 64, batch_size) );
-	nn.layers.push_back (new ReLU (&ocl, 64, 64, batch_size) );
-	nn.layers.push_back (new Linear (&ocl, 64, 10, batch_size) );
+	nn.layers.push_back (new Linear (&ocl, 256, 100, batch_size) );
+	nn.layers.push_back (new ReLU (&ocl, 100, 100, batch_size) );
+	nn.layers.push_back (new Linear (&ocl, 100, 10, batch_size) );
 	nn.layers.push_back (new Softmax (&ocl, 10, 10, batch_size) );
+
 	datapoints train_data = MNISTImporter::importFromFile (ocl,  "data/mnist/train-images-idx3-ubyte", "data/mnist/train-labels-idx1-ubyte", 60000);
 	datapoints test_data = MNISTImporter::importFromFile (ocl, "data/mnist/t10k-images-idx3-ubyte", "data/mnist/t10k-labels-idx1-ubyte", 10000);
+
 	std::cout << "CL mem allocated: " << (double) cl_mem_allocated / (double) (1 << 20) << " MB\n";
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 
 	for (size_t e = 0; e < epochs; e++) {
+		clFinish(ocl.queue());
 		std::cout << std::endl << "Epoch " << e + 1 << std::endl;
-		_TIMED_CALL_ (nn.train (train_data, learning_rate, 1000, show_training_loss) );
+		nn.train (train_data, learning_rate, 1000, show_training_loss);
 		show_profiling_data (pdata, SORT_BY_TIME_DESC, prof_enabled);
-		_TIMED_CALL_ (nn.test (test_data) );
+		nn.test (test_data);
 	}
 }
