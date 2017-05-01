@@ -354,7 +354,7 @@ void cl_softmax (cl_matrix<float>& y, cl_matrix<float>& x, bool wait = false) {
 	cl_colsumdiv (colsums, y, wait);
 }
 
-int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& b, bool tA, bool tB, float alpha, float beta, bool wait = false) {
+int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& b, bool tA, bool tB, float alpha, float beta, cl_command_queue aux_queue = nullptr, bool wait = false) {
 
 	const CL_BLAS_MATRIX_ORDER order = CL_BLAS_MATRIX_ORDER_COLUMN;
 	const CL_BLAS_MATRIX_TRANSPOSE transA = tA ? CL_BLAS_MATRIX_TRANSPOSED : CL_BLAS_MATRIX_NOT_TRANSPOSED;
@@ -371,10 +371,12 @@ int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& 
 	CL_BLAS_STATUS_TYPE status;
 	std::string func_string = "cl_matrix_mult_M_" + std::to_string(M) + "_N_" + std::to_string(N) + "_K_" + std::to_string(K) + "_aT_" + std::to_string(tA) + "_bT_" + std::to_string(tB);
 
+	cl_command_queue exec_queue = aux_queue == nullptr ? c.matrix_ctx->queue() : aux_queue;
+
 	if (c.matrix_ctx->profiling_enabled) clFinish (c.matrix_ctx->queue() );
 
 	/* Execute the kernel */
-	status = CL_BLAS_SGEMM (order, transA, transB, M, N, K, alpha, (cl_mem) a.ref_device_data, offset_a, lda, (cl_mem) b.ref_device_data, offset_b, ldb, beta, (cl_mem) c.ref_device_data, offset_c, ldc, 1, &c.matrix_ctx->queue(), 0, NULL, &c.matrix_ctx->cl_events[func_string]);
+	status = CL_BLAS_SGEMM (order, transA, transB, M, N, K, alpha, (cl_mem) a.ref_device_data, offset_a, lda, (cl_mem) b.ref_device_data, offset_b, ldb, beta, (cl_mem) c.ref_device_data, offset_c, ldc, 1, &exec_queue, 0, NULL, &c.matrix_ctx->cl_events[func_string]);
 
 	if (status != CL_BLAS_SUCCESS_CODE) {
 		printf ("clblasSgemm() failed with %d - %s\n", status, oclErrorString (status) );

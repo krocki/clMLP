@@ -32,8 +32,12 @@ class cl_ctx {
 	// cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
 	cl_context _ctx = 0;
 	cl_command_queue _queue = 0;
+	int num_async_queues = 1;
+	cl_command_queue async_queues[1];
+
 	cl_program program_elementwise = 0;
 	cl_program program_rand = 0;
+	cl_program program_fused = 0;
 
 	std::vector <deviceInfo> availableDevices;
 
@@ -63,6 +67,9 @@ class cl_ctx {
 
 	// from rand.cl
 	Dict<cl_kernel> kernels_rand;
+
+	// from fused_nn.cl
+	Dict<cl_kernel> kernels_fused;
 
 	Dict<prof_data>& pdata;
 
@@ -144,7 +151,6 @@ class cl_ctx {
 
 		const std::string queue_color_message = "\x1b[33m[ cpu profiling_enabled = " + std::to_string (CPU_PROF_ENABLED) + " ]\x1b[0m\n" + "\x1b[33m[ cl profiling_enabled = " + std::to_string (CL_PROF_ENABLED) + " ]\x1b[0m\n" + "\x1b[33m[ ooo_exec_enabled = " + std::to_string (ooo_exec_enabled) + " ]\x1b[0m\n" + "\x1b[33m[ cl profiling_timer_resolution: " + std::to_string (dev_properties.profiling_timer_resolution) + " ns ]\x1b[0m\n";
 
-
 		std::cout << std::endl << queue_color_message << std::endl;
 		_queue = clCreateCommandQueue (_ctx, device, queue_properties, &err);
 
@@ -154,9 +160,24 @@ class cl_ctx {
 			return 1;
 		}
 
-		std::cout << "CL_BLAS_IMPL: " << CL_BLAS_IMPL << std::endl;
+		if (num_async_queues > 0) {
+
+			const std::string async_queue_message = "\x1b[33m[ num_async_queues = " + std::to_string (num_async_queues) + " ]";
+			async_queues[0] = clCreateCommandQueue (_ctx, device, queue_properties, &err);
+
+			if (err != CL_SUCCESS) {
+				printf ("clCreateCommandQueue() failed with %d\n", err);
+				clReleaseContext (_ctx);
+				return 1;
+			}
+
+			std::cout << std::endl << async_queue_message << std::endl;
+		}
+
 		/* Setup clblas. */
 		CL_SAFE_CALL (CL_BLAS_INIT() );
+		CL_BLAS_SHOW_VERSION();
+
 		/* Setup clRNG. */
 		init_clrng (_ctx, local_work_size);
 		// compiling programs
@@ -175,6 +196,16 @@ class cl_ctx {
 
 		if (!program_rand) {
 			printf ("program_rand compilation failed.");
+			clReleaseCommandQueue (_queue);
+			clReleaseContext (_ctx);
+			return 1;
+		}
+
+		const char* clfused_nn_build_flags = "";
+		program_fused = clUtils::compileProgram ("./src/opencl/kernels/fused_nn.cl", _ctx, device, clfused_nn_build_flags);
+
+		if (!program_fused) {
+			printf ("program_fused compilation failed.");
 			clReleaseCommandQueue (_queue);
 			clReleaseContext (_ctx);
 			return 1;
@@ -201,6 +232,7 @@ class cl_ctx {
 		kernels_rand["uniform01"] = clCreateKernel (program_rand, "uniform01", &err);
 		kernels_rand["randi"] = clCreateKernel (program_rand, "randi", &err);
 		kernels_rand["normal"] = clCreateKernel (program_rand, "normal", &err);
+		kernels_fused["forward"] = clCreateKernel (program_fused, "forward", &err);
 
 		if (err != CL_SUCCESS) {
 			printf ("clCreateKernel() failed with %d\n", err);
@@ -237,6 +269,7 @@ class cl_ctx {
 	}
 
 	~cl_ctx() {
+
 		destroy_clrng();
 		/* Finalize work with clblas. */
 		CL_BLAS_TEARDOWN();
@@ -262,10 +295,16 @@ class cl_ctx {
 		for (size_t i = 0; i < kernels_rand.entries.size(); i++)
 			clReleaseKernel (kernels_rand.entries[i]);
 
+		for (size_t i = 0; i < kernels_fused.entries.size(); i++)
+			clReleaseKernel (kernels_fused.entries[i]);
+
 		clReleaseProgram (program_elementwise);
 		clReleaseProgram (program_rand);
+		clReleaseProgram (program_fused);
 
 		/* Release OpenCL working objects. */
+		if (num_async_queues > 0) { clReleaseCommandQueue(async_queues[0]); };
+
 		clReleaseCommandQueue (_queue);
 		clReleaseContext (_ctx);
 	}
@@ -273,8 +312,13 @@ class cl_ctx {
 	cl_context& ctx() {
 		return _ctx;
 	}
+
 	cl_command_queue& queue() {
 		return _queue;
+	}
+
+	cl_command_queue& async_queue(int num) {
+		return async_queues[num];
 	}
 
 };

@@ -31,13 +31,13 @@ int main (int argc, char** argv) {
 	// prof_enabled is a global from cl_prof.h
 	prof_enabled = ptype;
 	// go
-	nntest (requested_cl_device, CL_DEVICE_TYPE_GPU);
+	nntest (requested_cl_device, CL_DEVICE_TYPE_ALL);
 }
 
 void nntest (int device, cl_device_type dev_type) {
 
 	size_t epochs = 1000;
-	size_t batch_size = 100;
+	size_t batch_size = 250;
 	float learning_rate = 1e-4f;
 	bool show_training_loss = true;
 	start = std::chrono::system_clock::now();

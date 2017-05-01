@@ -53,8 +53,18 @@ class Linear : public CLLayer {
 	}
 
 	void backward() {
+
 		cl_matrix_mult (dW, dy, x, false, true, 1.0f, 0.0f);
 		cl_matrix_mult (dx, W, dy, true, false, 1.0f, 0.0f);
+
+		// async: how? this is slow
+		// clFinish (dW.matrix_ctx->queue());
+
+		// cl_matrix_mult (dW, dy, x, false, true, 1.0f, 0.0f);
+		// cl_matrix_mult (dx, W, dy, true, false, 1.0f, 0.0f, dx.matrix_ctx->async_queue(0));
+
+		// clFinish (dx.matrix_ctx->async_queue(0));
+
 	}
 
 	Linear (cl_ctx* cl_env, size_t inputs, size_t outputs, size_t batch_size) : CLLayer (cl_env, inputs, outputs, batch_size) {
