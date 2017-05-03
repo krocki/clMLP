@@ -228,7 +228,7 @@ int cl_sum(cl_matrix<float>& m, bool wait = false, bool read_to_hostmem = false)
 
 		if (m.scratchBuf) clReleaseMemObject ( (cl_mem) m.scratchBuf);
 
-		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), CL_MEM_READ_WRITE, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
+		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
 
 		if (m.matrix_ctx->err != CL_SUCCESS) {
 			printf ("cl_max_coeff : m.scratchBuf = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
@@ -236,7 +236,7 @@ int cl_sum(cl_matrix<float>& m, bool wait = false, bool read_to_hostmem = false)
 		}
 	}
 
-	if (!m.d_sum) m.d_sum = clCreateBuffer (m.matrix_ctx->ctx(), CL_MEM_READ_WRITE, sizeof (cl_float), NULL, &m.matrix_ctx->err);
+	if (!m.d_sum) m.d_sum = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, sizeof (cl_float), NULL, &m.matrix_ctx->err);
 
 	if (m.matrix_ctx->err != CL_SUCCESS) {
 		printf ("cl_sum : m.d_sum = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
@@ -274,7 +274,7 @@ int cl_max_coeff (cl_matrix<float>& m, bool wait = false, bool read_to_hostmem =
 
 		if (m.scratchBuf) clReleaseMemObject ( (cl_mem) m.scratchBuf);
 
-		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), CL_MEM_READ_WRITE, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
+		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
 
 		if (m.matrix_ctx->err != CL_SUCCESS) {
 			printf ("cl_max_coeff : m.scratchBuf = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
@@ -282,7 +282,7 @@ int cl_max_coeff (cl_matrix<float>& m, bool wait = false, bool read_to_hostmem =
 		}
 	}
 
-	if (!m.iMax) m.iMax = clCreateBuffer (m.matrix_ctx->ctx(), CL_MEM_READ_WRITE, sizeof (cl_uint), NULL, &m.matrix_ctx->err);
+	if (!m.iMax) m.iMax = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, sizeof (cl_uint), NULL, &m.matrix_ctx->err);
 
 	if (m.matrix_ctx->err != CL_SUCCESS) {
 		printf ("cl_max_coeff : m.iMax = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
@@ -344,7 +344,7 @@ cl_matrix<float> colsums;
 cl_matrix<float> ones_column;
 
 void cl_softmax (cl_matrix<float>& y, cl_matrix<float>& x, bool wait = false) {
-	cl_elementwise (y, x, "exp", wait);
+	cl_elementwise (y, x, "f_min_exp", wait);
 
 	if (!colsums.ref_device_data) {
 		colsums = cl_matrix<float> (y.matrix_ctx, {1, y.cols() });

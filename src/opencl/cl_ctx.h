@@ -46,9 +46,13 @@ class cl_ctx {
 	cl_device_id device = 0;
 	cl_dev_info dev_properties;
 
+	// various performance options
 	bool asynchronous = true;
 	bool profiling_enabled = true;
 	bool ooo_exec_enabled = false;
+	bool zero_copy_mem = false;
+
+	cl_mem_flags device_mem_alloc_flags = CL_MEM_READ_WRITE;
 
 	cl_int err;
 	cl_event event = NULL;
@@ -143,6 +147,69 @@ class cl_ctx {
 			return 1;
 		}
 
+		if (zero_copy_mem) {
+
+			device_mem_alloc_flags = CL_MEM_ALLOC_HOST_PTR;
+			// CL_MEM_USE_HOST_PTR;
+			// CL_MEM_USE_PERSISTENT_MEM_AMD
+			// CL_MEM_READ_ONLY
+			// CL_MEM_READ_WRITE
+			// CL_MEM_WRITE_ONLY
+
+			// CL_MEM_ALLOC_HOST_PTR or CL_MEM_USE_HOST_PTR are pinned at creation time
+
+			// APU:
+			// 1. address = clMapBuffer(buffer)
+			// 2. memset(address), memcpy(address), possibly using multiple cores
+			// 3. clEnqueueUnmapMemObject(buffer)
+			// 4. clEnqueueNDRangeKernel
+
+			// http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/opencl-optimization-guide/
+			// "Application Scenarios and Recommended OpenCL Paths"
+
+
+		}
+
+		/* async execution - put cpu to sleep */
+		/*		if (sleep)
+
+		{
+
+		// this puts host thread to sleep, useful if power is a consideration
+		or overhead is not a concern
+
+		clFinish(cmd_queue_);
+
+		}
+
+		else
+
+		{
+
+		// this keeps the host thread awake, useful if latency is a concern
+
+		clFlush(cmd_queue_);
+
+		error_ = clGetEventInfo(event, CL_EVENT_COMMAND_EXECUTION_STATUS,
+		sizeof(cl_int), &eventStatus, NULL);
+
+		while (eventStatus > 0)
+
+		{
+
+		error_ = clGetEventInfo(event, CL_EVENT_COMMAND_EXECUTION_STATUS,
+		sizeof(cl_int), &eventStatus, NULL);
+
+		Sleep(0); // be nice to other threads, allow scheduler to find
+		other work if possible
+
+		// Choose your favorite way to yield, SwitchToThread() for example,
+		in place of Sleep(0)
+
+		}
+
+		}*/
+
 		/* create command queue */
 		cl_command_queue_properties queue_properties = 0;
 
@@ -182,7 +249,8 @@ class cl_ctx {
 		init_clrng (_ctx, local_work_size);
 		// compiling programs
 		printf ("compiling programs\n");
-		program_elementwise = clUtils::compileProgram ("./src/opencl/kernels/elementwise_ops.cl", _ctx, device, "");
+		const char* clprogram_elementwise_build_flags = "-cl-single-precision-constant -cl-fast-relaxed-math -I./src/opencl/kernels/blas/";
+		program_elementwise = clUtils::compileProgram ("./src/opencl/kernels/elementwise_ops.cl", _ctx, device, clprogram_elementwise_build_flags);
 
 		if (!program_elementwise) {
 			printf ("program_elementwise compilation failed.");
@@ -220,6 +288,8 @@ class cl_ctx {
 		kernels2["colsumdiv"] = clCreateKernel (program_elementwise, "colsumdiv", &err);
 		kernels2["exp"] = clCreateKernel (program_elementwise, "expf2", &err);
 		kernels2["sub"] = clCreateKernel (program_elementwise, "sub2", &err);
+		kernels2["f_min_exp"] = clCreateKernel (program_elementwise, "f_min_exp", &err);
+
 		kernels3["sub"] = clCreateKernel (program_elementwise, "sub3", &err);
 		kernels3["drelu"] = clCreateKernel (program_elementwise, "drelu", &err);
 		kernels3["dlogistic"] = clCreateKernel (program_elementwise, "dlogistic", &err);

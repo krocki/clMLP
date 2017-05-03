@@ -5,6 +5,8 @@
     @Last Modified time: 2017-04-29 11:35:06
 */
 
+#include <containers/memarray.h>
+
 #include <Eigen/Dense>
 
 #ifndef __CL_MATRIX__
@@ -27,7 +29,7 @@ int cl_copy_matrix_to_device (cl_ctx* ctx, cl_mem device_data, host_matrix<T>& s
 unsigned long cl_mem_allocated = 0L;
 
 template <typename T = float>
-class cl_matrix {
+class cl_matrix : public memarray<T> {
 
   public:
 
@@ -136,8 +138,10 @@ class cl_matrix {
 	};
 
 	void alloc_device_mem() {
-		cl_alloc_from_matrix (matrix_ctx, device_data, ref_host_data, CL_MEM_READ_WRITE);
+
+		cl_alloc_from_matrix (matrix_ctx, device_data, ref_host_data, matrix_ctx->device_mem_alloc_flags);
 		ref_device_data = device_data;
+
 	}
 
 	void free_device_mem() {
@@ -216,8 +220,13 @@ int cl_copy_matrix_to_device (cl_ctx* ctx, cl_mem device_data, host_matrix<T>& s
 
 	if (ctx->profiling_enabled) clFinish (ctx->queue() );
 
-	CL_SAFE_CALL (clEnqueueWriteBuffer (ctx->queue(), device_data, CL_TRUE, 0, bytes, src.data(), 0, NULL, &ctx->cl_events[event_string]) );
+	if (ctx->zero_copy_mem) {
 
+		//CL_SAFE_CALL (clEnqueueUnMapBuffer());, flags: CL_MAP_READ
+
+	} else {
+		CL_SAFE_CALL (clEnqueueWriteBuffer (ctx->queue(), device_data, CL_TRUE, 0, bytes, src.data(), 0, NULL, &ctx->cl_events[event_string]) );
+	}
 	if ( (!ctx->asynchronous || wait) || ctx->profiling_enabled) ctx->get_profiling_data (event_string);
 
 	return 0;
@@ -231,8 +240,14 @@ int cl_copy_matrix_to_host (cl_ctx* ctx, host_matrix<T>& dst, cl_mem device_data
 	}
 
 	size_t bytes = dst.rows() * dst.cols() * sizeof (T);
-	CL_SAFE_CALL (clEnqueueReadBuffer (ctx->queue(), device_data, CL_TRUE, 0, bytes, dst.data(), 0, NULL, NULL) );
 
+	if (ctx->zero_copy_mem) {
+
+		//CL_SAFE_CALL (clEnqueueMapBuffer());, flags: CL_MAP_READ
+
+	} else {
+		CL_SAFE_CALL (clEnqueueReadBuffer (ctx->queue(), device_data, CL_TRUE, 0, bytes, dst.data(), 0, NULL, NULL) );
+	}
 	if (ctx->profiling_enabled) clFinish (ctx->queue() );
 
 	return 0;

@@ -5,6 +5,9 @@
     @Last Modified time: 2017-04-29 11:25:56
 */
 
+#include <af_matrix.h>
+#include <eigen_matrix.h>
+
 #include <opencl/cl_utils.h>
 #include <opencl/cl_defs.h>
 #include <opencl/cl_ctx.h>
@@ -31,7 +34,7 @@ int main (int argc, char** argv) {
 	// prof_enabled is a global from cl_prof.h
 	prof_enabled = ptype;
 	// go
-	nntest (requested_cl_device, CL_DEVICE_TYPE_ALL);
+	nntest (requested_cl_device, CL_DEVICE_TYPE_GPU);
 }
 
 void nntest (int device, cl_device_type dev_type) {
@@ -50,9 +53,7 @@ void nntest (int device, cl_device_type dev_type) {
 	CLNN nn (ocl, batch_size, 28 * 28, 10);
 
 	// ~98.1% after 60 epochs
-	nn.layers.push_back (new Linear (&ocl, 28 * 28, 400, batch_size) );
-	nn.layers.push_back (new ReLU (&ocl, 400, 400, batch_size) );
-	nn.layers.push_back (new Linear (&ocl, 400, 256, batch_size) );
+	nn.layers.push_back (new Linear (&ocl, 28 * 28, 256, batch_size) );
 	nn.layers.push_back (new ReLU (&ocl, 256, 256, batch_size) );
 	nn.layers.push_back (new Linear (&ocl, 256, 100, batch_size) );
 	nn.layers.push_back (new ReLU (&ocl, 100, 100, batch_size) );
