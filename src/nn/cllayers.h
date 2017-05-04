@@ -130,8 +130,7 @@ class Softmax : public CLLayer {
   public:
 
 	void forward() {
-		cl_sub_max_coeff (x);
-		cl_softmax (y, x);
+		cl_softmax (y, x); // includes isamax, submax, exp and colsumdiv
 	}
 
 	void backward() {

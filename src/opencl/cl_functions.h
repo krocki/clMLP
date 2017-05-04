@@ -12,6 +12,9 @@
 #include <opencl/cl_matrix.h>
 #include <opencl/cl_rand.h>
 
+cl_matrix<float> colsums;
+cl_matrix<float> ones_column;
+
 int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& b, bool wait);
 
 void cl_matrix_randn (cl_matrix<float>& y, bool wait = false) {
@@ -34,6 +37,8 @@ void cl_matrix_randn (cl_matrix<float>& y, bool wait = false) {
 	CL_SAFE_CALL (clEnqueueNDRangeKernel (y.matrix_ctx->queue(), y.matrix_ctx->kernels_rand["normal"], 1, NULL, &numWorkItems, NULL, 0, NULL, &y.matrix_ctx->cl_events[func_string]) );
 
 	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled) y.matrix_ctx->get_profiling_data (func_string);
+
+	y.matrix_ctx->pdata[func_string].calls += 1;
 }
 
 void cl_matrix_rand (cl_matrix<float>& y, bool wait = false) {
@@ -54,6 +59,8 @@ void cl_matrix_rand (cl_matrix<float>& y, bool wait = false) {
 	CL_SAFE_CALL (clEnqueueNDRangeKernel (y.matrix_ctx->queue(), y.matrix_ctx->kernels_rand["uniform01"], 1, NULL, &numWorkItems, NULL, 0, NULL, &y.matrix_ctx->cl_events[func_string]) );
 
 	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled) y.matrix_ctx->get_profiling_data (func_string);
+
+	y.matrix_ctx->pdata[func_string].calls += 1;
 }
 
 void cl_matrix_randi (cl_matrix<int>& y, int range_min = 0, int range_max = 99, bool wait = false) {
@@ -81,6 +88,8 @@ void cl_matrix_randi (cl_matrix<int>& y, int range_min = 0, int range_max = 99, 
 	CL_SAFE_CALL (clEnqueueNDRangeKernel (y.matrix_ctx->queue(), y.matrix_ctx->kernels_rand["randi"], 1, NULL, &numWorkItems, NULL, 0, NULL, &y.matrix_ctx->cl_events[func_string]) );
 
 	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled) y.matrix_ctx->get_profiling_data (func_string);
+
+	y.matrix_ctx->pdata[func_string].calls += 1;
 }
 
 void cl_gather_data (cl_matrix<float>& src, cl_matrix<float>& dst, const cl_matrix<int>& idxs, bool wait = false) {
@@ -103,6 +112,8 @@ void cl_gather_data (cl_matrix<float>& src, cl_matrix<float>& dst, const cl_matr
 	CL_SAFE_CALL (clEnqueueNDRangeKernel (dst.matrix_ctx->queue(), dst.matrix_ctx->kernels4["gather_data"], 1, NULL, &global_work_size, &dst.matrix_ctx->local_work_size, 0, NULL, &dst.matrix_ctx->cl_events[func_string]) );
 
 	if ( (!dst.matrix_ctx->asynchronous || wait) || dst.matrix_ctx->profiling_enabled) dst.matrix_ctx->get_profiling_data (func_string);
+
+	dst.matrix_ctx->pdata[func_string].calls += 1;
 }
 
 // y = f(y)
@@ -126,9 +137,59 @@ void cl_elementwise (cl_matrix<float>& y, std::string func, bool wait = false) {
 	y.matrix_ctx->pdata[func_string].flops += y.rows() * y.cols();
 	y.matrix_ctx->pdata[func_string].bytes_out += y.rows() * y.cols() * sizeof (float);
 	y.matrix_ctx->pdata[func_string].bytes_in += y.rows() * y.cols() * sizeof (float);
+	y.matrix_ctx->pdata[func_string].calls += 1;
 }
 
-// y = f(x)
+int cl_resize_scratchpad(cl_matrix<float>& m) {
+
+	unsigned int N = m.rows() * m.cols();
+
+	if (m.lenScratchBuf < N) {
+		m.lenScratchBuf = N;
+
+		if (m.scratchBuf) clReleaseMemObject ( (cl_mem) m.scratchBuf);
+
+		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
+
+		if (m.matrix_ctx->err != CL_SUCCESS) {
+			printf ("cl_resize_scratchpad : m.scratchBuf = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+void cl_elementwise_scratchpad (cl_matrix<float>& y, cl_matrix<float>& x, std::string func, bool wait = false) {
+
+	unsigned int count = y.rows() * y.cols();
+	unsigned int cols = y.cols();
+
+	cl_resize_scratchpad(y);
+
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 1, sizeof (cl_mem), (void*) &x.ref_device_data) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 2, sizeof (unsigned int), (void*) &count) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 3, sizeof (unsigned int), (void*) &cols) );
+	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2[func], 4, sizeof (cl_mem), (void*) &y.scratchBuf) );
+
+	size_t global_work_size = ( (count / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
+
+	std::string func_string = "cl_elementwise_2_buf_" + func + "_" + std::to_string(count) + "_" + std::to_string(y.rows()) + "x" + std::to_string(y.cols());
+
+	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
+
+	/* Execute the kernel */
+	CL_SAFE_CALL (clEnqueueNDRangeKernel (y.matrix_ctx->queue(), y.matrix_ctx->kernels2[func], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->cl_events[func_string]) );
+
+	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled) y.matrix_ctx->get_profiling_data (func_string);
+
+	y.matrix_ctx->pdata[func_string].flops += y.rows() * y.cols();
+	y.matrix_ctx->pdata[func_string].bytes_out += y.rows() * y.cols() * sizeof (float);
+	y.matrix_ctx->pdata[func_string].bytes_in += x.rows() * x.cols() * sizeof (float);
+	y.matrix_ctx->pdata[func_string].calls += 1;
+}
+
 void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, std::string func, bool wait = false) {
 
 	unsigned int count = y.rows() * y.cols();
@@ -150,6 +211,7 @@ void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, std::string func,
 	y.matrix_ctx->pdata[func_string].flops += y.rows() * y.cols();
 	y.matrix_ctx->pdata[func_string].bytes_out += y.rows() * y.cols() * sizeof (float);
 	y.matrix_ctx->pdata[func_string].bytes_in += x.rows() * x.cols() * sizeof (float);
+	y.matrix_ctx->pdata[func_string].calls += 1;
 }
 
 // y = x op z
@@ -170,6 +232,8 @@ void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, cl_matrix<float>&
 	CL_SAFE_CALL (clEnqueueNDRangeKernel (y.matrix_ctx->queue(), y.matrix_ctx->kernels3[func], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->cl_events[func_string]) );
 
 	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled) y.matrix_ctx->get_profiling_data (func_string);
+
+	y.matrix_ctx->pdata[func_string].calls += 1;
 }
 
 // y = x op z
@@ -197,6 +261,7 @@ void cl_elementwise (cl_matrix<float>& y, cl_matrix<float>& x, float z, std::str
 	y.matrix_ctx->pdata[func_string].flops += y.rows() * y.cols();
 	y.matrix_ctx->pdata[func_string].bytes_out += y.rows() * y.cols() * sizeof (float);
 	y.matrix_ctx->pdata[func_string].bytes_in += x.rows() * x.cols() * sizeof (float);
+	y.matrix_ctx->pdata[func_string].calls += 1;
 }
 
 void cl_matrix_scalar (cl_matrix<float>& y, std::string func, bool wait = false) {
@@ -223,18 +288,7 @@ int cl_sum(cl_matrix<float>& m, bool wait = false, bool read_to_hostmem = false)
 
 	size_t N = m.rows() * m.cols();
 
-	if (m.lenScratchBuf < N) {
-		m.lenScratchBuf = N;
-
-		if (m.scratchBuf) clReleaseMemObject ( (cl_mem) m.scratchBuf);
-
-		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
-
-		if (m.matrix_ctx->err != CL_SUCCESS) {
-			printf ("cl_max_coeff : m.scratchBuf = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
-			return 1;
-		}
-	}
+	cl_resize_scratchpad(m);
 
 	if (!m.d_sum) m.d_sum = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, sizeof (cl_float), NULL, &m.matrix_ctx->err);
 
@@ -264,94 +318,15 @@ int cl_sum(cl_matrix<float>& m, bool wait = false, bool read_to_hostmem = false)
 		}
 	}
 
-	return 0;
-}
-int cl_max_coeff (cl_matrix<float>& m, bool wait = false, bool read_to_hostmem = false) {
-	size_t N = m.rows() * m.cols();
-
-	if (m.lenScratchBuf < N) {
-		m.lenScratchBuf = N;
-
-		if (m.scratchBuf) clReleaseMemObject ( (cl_mem) m.scratchBuf);
-
-		m.scratchBuf = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, (N * sizeof (cl_float) * 2), NULL, &m.matrix_ctx->err);
-
-		if (m.matrix_ctx->err != CL_SUCCESS) {
-			printf ("cl_max_coeff : m.scratchBuf = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
-			return 1;
-		}
-	}
-
-	if (!m.iMax) m.iMax = clCreateBuffer (m.matrix_ctx->ctx(), m.matrix_ctx->device_mem_alloc_flags, sizeof (cl_uint), NULL, &m.matrix_ctx->err);
-
-	if (m.matrix_ctx->err != CL_SUCCESS) {
-		printf ("cl_max_coeff : m.iMax = clCreateBuffer() failed with %d\n", m.matrix_ctx->err);
-		return 1;
-	}
-
-	// _CL_TIMED_CALL_
-	std::string func_string = "clblas_isamax_" + std::to_string(N) + "_" + std::to_string(m.rows()) + "x" + std::to_string(m.cols());
-
-	if (m.matrix_ctx->profiling_enabled) clFinish (m.matrix_ctx->queue() );
-
-	CL_BLAS_STATUS_TYPE status = CL_BLAS_ISAMAX (N, m.iMax, 0, m.ref_device_data, 0, 1, m.scratchBuf, 1, &m.matrix_ctx->queue(), 0, NULL, &m.matrix_ctx->cl_events[func_string]);
-
-	if (status != CL_BLAS_SUCCESS_CODE) {
-		printf ("clblasiSamax() failed with %d - %s\n", status, oclErrorString (status) );
-		return 1;
-
-	} else {
-		/* Wait for calculations to be finished. */
-		if ( (!m.matrix_ctx->asynchronous || wait) || m.matrix_ctx->profiling_enabled) m.matrix_ctx->get_profiling_data (func_string);
-
-		/* Fetch results of calculations from GPU memory. */
-		if (read_to_hostmem) {
-			CL_SAFE_CALL (clEnqueueReadBuffer (m.matrix_ctx->queue(), m.iMax, CL_TRUE, 0, sizeof (cl_uint), &m.indexMax, 0, NULL, NULL) );
-			m.indexMax -= 1;
-		}
-	}
+	m.matrix_ctx->pdata[func_string].calls += 1;
 
 	return 0;
 }
-
-void cl_sub_max_coeff (cl_matrix<float>& m, bool wait = false) {
-	cl_max_coeff (m, wait);
-	cl_matrix_scalar (m, "sub", wait);
-}
-
-void cl_colsumdiv (cl_matrix<float>& y, cl_matrix<float>& x, bool wait = false) {
-
-	unsigned int count = x.rows() * x.cols();
-	unsigned int cols = y.cols();
-
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 0, sizeof (cl_mem), (void*) &y.ref_device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 1, sizeof (cl_mem), (void*) &x.ref_device_data) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 2, sizeof (unsigned int), (void*) &count) );
-	CL_SAFE_CALL (clSetKernelArg (y.matrix_ctx->kernels2["colsumdiv"], 3, sizeof (unsigned int), (void*) &cols) );
-
-	size_t global_work_size = ( (cols / y.matrix_ctx->local_work_size) + 1) * y.matrix_ctx->local_work_size;
-	std::string func_string = "cl_colsumdiv_" + std::to_string(count) + "_" + std::to_string(x.rows()) + "x" + std::to_string(x.cols());
-
-	if (y.matrix_ctx->profiling_enabled) clFinish (y.matrix_ctx->queue() );
-
-	/* Execute the kernel */
-	CL_SAFE_CALL (clEnqueueNDRangeKernel (y.matrix_ctx->queue(), y.matrix_ctx->kernels2["colsumdiv"], 1, NULL, &global_work_size, &y.matrix_ctx->local_work_size, 0, NULL, &y.matrix_ctx->cl_events[func_string]) );
-
-	if ( (!y.matrix_ctx->asynchronous || wait) || y.matrix_ctx->profiling_enabled) y.matrix_ctx->get_profiling_data (func_string);
-}
-
-cl_matrix<float> colsums;
-cl_matrix<float> ones_column;
 
 void cl_softmax (cl_matrix<float>& y, cl_matrix<float>& x, bool wait = false) {
-	cl_elementwise (y, x, "f_min_exp", wait);
 
-	if (!colsums.ref_device_data) {
-		colsums = cl_matrix<float> (y.matrix_ctx, {1, y.cols() });
-	}
+	cl_elementwise_scratchpad (y, x, "f_softmax", wait);
 
-	//TODO: split and improve
-	cl_colsumdiv (colsums, y, wait);
 }
 
 int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& b, bool tA, bool tB, float alpha, float beta, cl_command_queue aux_queue = nullptr, bool wait = false) {
@@ -388,6 +363,7 @@ int cl_matrix_mult (cl_matrix<float>& c, cl_matrix<float>& a, cl_matrix<float>& 
 		c.matrix_ctx->pdata[func_string].flops += M * N * K * 2;
 		c.matrix_ctx->pdata[func_string].bytes_out += c.rows() * c.cols() * sizeof (float);
 		c.matrix_ctx->pdata[func_string].bytes_in += (a.rows() * a.cols() + b.rows() * b.cols() ) * sizeof (float);
+		c.matrix_ctx->pdata[func_string].calls += 1;
 		return 0;
 	}
 }

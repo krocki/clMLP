@@ -1,6 +1,6 @@
 #ifdef CLBLAST
 #include <clblast_c.h>
-#define CL_BLAS_SHOW_VERSION do { printf("clBlast\n"); } while (0)
+#define CL_BLAS_SHOW_VERSION() do { printf("clBlast\n"); } while (0)
 #define CL_BLAS_INIT() CL_SUCCESS
 #define CL_BLAS_TEARDOWN() CL_SUCCESS
 #define CL_BLAS_SGEMM(order, transA, transB, M, N, K, alpha, A, offA, lda, B, offB, ldb, beta, C, offC, ldc, numCommandQueues, commandQueues, numEventsInWaitList, eventWaitList, events ) CLBlastSgemm((order), (transA), (transB), (M), (N), (K), (alpha), (A), (offA), (lda), (B), (offB), (ldb), (beta), (C), (offC), (ldc), (commandQueues), (events))

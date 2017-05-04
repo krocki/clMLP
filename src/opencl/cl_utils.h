@@ -418,7 +418,7 @@ clUtils::oclErrorString (cl_int error) {
 
 void clUtils::checkError (const cl_int ciErrNum, const char* const operation) {
 	if (ciErrNum != CL_SUCCESS) {
-		printf ("ERROR: %s failed, %s\n", operation, oclErrorString (ciErrNum) );
+		printf ("ERROR: %s failed, %s, %d\n", operation, oclErrorString (ciErrNum), ciErrNum );
 		// exit(EXIT_FAILURE);
 	}
 }

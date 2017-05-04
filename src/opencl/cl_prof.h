@@ -36,10 +36,11 @@ cl_command_queue defqueue;
 			func_end = std::chrono::system_clock::now(); \
 			double func_time = ( double ) std::chrono::duration_cast<std::chrono::nanoseconds> ( func_end - func_start ).count(); \
 			pdata[#func].time += func_time; \
+			pdata[#func].calls += 1; \
 		} \
 	} while (0)
 
-typedef enum sort_method_type { NO_SORTING = 0, SORT_BY_TIME_DESC = 1, SORT_BY_FLOPS_DESC = 2, SORT_BY_NAME = 3, SORT_BY_NAME_DESC = 4} sort_method_type;
+typedef enum sort_method_type { NO_SORTING = 0, SORT_BY_TIME_DESC = 1, SORT_BY_FLOPS_DESC = 2, SORT_BY_NAME = 3, SORT_BY_NAME_DESC = 4, SORT_BY_CALLS_DESC = 5} sort_method_type;
 std::chrono::time_point<std::chrono::system_clock> start, end;
 
 
@@ -54,6 +55,7 @@ class prof_data {
 	long double flops = 0.0;
 	long double bytes_in = 0.0;
 	long double bytes_out = 0.0;
+	unsigned long long calls = 0L;
 
 	prof_data (std::string _description = "") : description (_description) {
 		reset();
@@ -64,6 +66,7 @@ class prof_data {
 		flops = 0.0;
 		bytes_in = 0.0;
 		bytes_out = 0.0;
+		calls = 0L;
 	}
 
 	void show (const double global_time = 0.0, double total_cl_time = 0.0, unsigned long total_cl_flops_performed = 0L, unsigned long total_bytes_in = 0L,  unsigned long total_bytes_out = 0L, const int m = 7, const int n = 3) {
@@ -81,6 +84,7 @@ class prof_data {
 		if (total_bytes_in > 0) total_bytes_in_perc = ( (100.0 * (long double) bytes_in) / (long double) total_bytes_in);
 		if (total_bytes_out > 0) total_bytes_out_perc = ( (100.0 * (long double) bytes_out) / (long double) total_bytes_out);
 
+		std::cout << " #" << to_string_with_precision ((double)calls * 1e-3, 5, 3);
 		std::cout << ", time: " << to_string_with_precision (time * 1e-9, m, n) << " s ";
 		std::cout << " / ( " << to_string_with_precision (cl_time_perc, 6, 2) << "% / ";
 		std::cout << to_string_with_precision (total_time_perc, 6, 2) << "% )";
@@ -102,6 +106,8 @@ void show_profiling_data (Dict<prof_data>& pdata, sort_method_type sort_method =
 	unsigned long total_cl_flops_performed  = 0L;
 	unsigned long total_bytes_in  = 0L;
 	unsigned long total_bytes_out  = 0L;
+	unsigned long total_calls  = 0L;
+
 	double total_cl_time = 0.0;
 	end = std::chrono::system_clock::now();
 	double difference = (double) std::chrono::duration_cast<std::chrono::microseconds> (end - start).count() / (double) 1e6;
@@ -114,6 +120,7 @@ void show_profiling_data (Dict<prof_data>& pdata, sort_method_type sort_method =
 			total_cl_time += pdata.entries[ i ].time;
 			total_bytes_in += pdata.entries[ i ].bytes_in;
 			total_bytes_out += pdata.entries[ i ].bytes_out;
+			total_calls += pdata.entries[ i ].calls;
 		}
 	}
 
@@ -128,6 +135,12 @@ void show_profiling_data (Dict<prof_data>& pdata, sort_method_type sort_method =
 	case SORT_BY_TIME_DESC:
 		sorted_idxs = pdata.sorted_idxs ([&] (size_t i1, size_t i2) {
 			return pdata.entries[i1].time > pdata.entries[i2].time;
+		});
+		break;
+
+	case SORT_BY_CALLS_DESC:
+		sorted_idxs = pdata.sorted_idxs ([&] (size_t i1, size_t i2) {
+			return pdata.entries[i1].calls > pdata.entries[i2].calls;
 		});
 		break;
 
@@ -166,6 +179,7 @@ void show_profiling_data (Dict<prof_data>& pdata, sort_method_type sort_method =
 		std::cout << "Total compute: " << 1e-9 * ( (long double) total_cl_flops_performed / (long double) difference) << " GF/s" << std::endl;
 		std::cout << "Total in: " << 1e-9 * ( (long double) total_bytes_in) << " GB" << std::endl;
 		std::cout << "Total out: " << 1e-9 * ( (long double) total_bytes_out) << " GB" << std::endl;
+		std::cout << "Total kernel calls: " << total_calls << std::endl;
 		std::cout << std::endl;
 	}
 

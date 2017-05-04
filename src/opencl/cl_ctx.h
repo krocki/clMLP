@@ -248,10 +248,11 @@ class cl_ctx {
 		/* Setup clRNG. */
 		init_clrng (_ctx, local_work_size);
 		// compiling programs
-		printf ("compiling programs\n");
-		const char* clprogram_elementwise_build_flags = "-cl-single-precision-constant -cl-fast-relaxed-math -I./src/opencl/kernels/blas/";
+		printf ("1 compiling programs\n");
+		const char* clprogram_elementwise_build_flags = "-I./src/opencl/kernels/blas/";
 		program_elementwise = clUtils::compileProgram ("./src/opencl/kernels/elementwise_ops.cl", _ctx, device, clprogram_elementwise_build_flags);
 
+		printf ("2 compiling programs\n");
 		if (!program_elementwise) {
 			printf ("program_elementwise compilation failed.");
 			clReleaseCommandQueue (_queue);
@@ -259,6 +260,7 @@ class cl_ctx {
 			return 1;
 		}
 
+		printf ("3 compiling programs\n");
 		const char* clrng_build_flags = "-I/usr/local/include";
 		program_rand = clUtils::compileProgram ("./src/opencl/kernels/rand.cl", _ctx, device, clrng_build_flags);
 
@@ -269,6 +271,7 @@ class cl_ctx {
 			return 1;
 		}
 
+		printf ("4 compiling programs\n");
 		const char* clfused_nn_build_flags = "";
 		program_fused = clUtils::compileProgram ("./src/opencl/kernels/fused_nn.cl", _ctx, device, clfused_nn_build_flags);
 
@@ -288,7 +291,7 @@ class cl_ctx {
 		kernels2["colsumdiv"] = clCreateKernel (program_elementwise, "colsumdiv", &err);
 		kernels2["exp"] = clCreateKernel (program_elementwise, "expf2", &err);
 		kernels2["sub"] = clCreateKernel (program_elementwise, "sub2", &err);
-		kernels2["f_min_exp"] = clCreateKernel (program_elementwise, "f_min_exp", &err);
+		kernels2["f_softmax"] = clCreateKernel (program_elementwise, "f_softmax", &err);
 
 		kernels3["sub"] = clCreateKernel (program_elementwise, "sub3", &err);
 		kernels3["drelu"] = clCreateKernel (program_elementwise, "drelu", &err);
